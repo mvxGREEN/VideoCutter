@@ -401,7 +401,7 @@ class MusicAdapter(private val activity: MainActivity, private var musicList: Li
             binding.root.setOnClickListener {
                 if (!isEditing) {
                     // Normal playback behavior
-                    activity.startMusicPlayback(file, adapterPosition)
+                    activity.startVideoEditor(file, adapterPosition)
                 }
                 // If editing, clicking the root view does nothing, as the user must save or exit.
             }
@@ -758,47 +758,23 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         }
     }
 
-    // This function is now responsible for setting the current play state in the repository
-    // and starting the service without passing large data via Intent.
-    fun startMusicPlayback(file: VideoFile, filteredIndex: Int) {
-        // Exit editing mode if currently active
+    // UPDATED: Launches the EditorActivity with the selected video
+    fun startVideoEditor(file: VideoFile, filteredIndex: Int) {
+        // Exit editing mode if currently active (renaming mode)
         if (musicAdapter.getEditingPosition() != RecyclerView.NO_POSITION) {
             exitEditingMode()
-            return // Prevent playback if exiting edit mode
-        }
-
-        // Get the currently displayed (sorted & filtered) list from the adapter
-        val currentDisplayedList = musicAdapter.getCurrentList()
-
-        if (currentDisplayedList.isEmpty()) {
-            Log.e("MainActivity", "Error: Current displayed list is empty. Cannot start playback.")
             return
         }
 
-        // Find the index of the clicked file (by ID) in the *current displayed* playlist.
-        // The `filteredIndex` passed to this function is the index in `currentDisplayedList`.
-        val actualIndex = filteredIndex
-
-        // 1. Set the current track index in the persistent store
-        PlaylistRepository.currentTrackIndex = actualIndex
-
-        // 2. Set the *current displayed list* as the service's playlist in the repository.
-        // This is crucial: the service must play the list the user sees (sorted/filtered).
-        PlaylistRepository.setFiles(currentDisplayedList)
-
-        // NEW: Hide the keyboard and clear focus when a track is clicked
+        // Hide keyboard just in case
         hideKeyboardAndClearFocus()
 
-        // Use startForegroundService for starting the service
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        // Create Intent to launch EditorActivity
+        val intent = Intent(this, EditorActivity::class.java).apply {
+            // VideoFile is Parcelable, so we can pass it directly
+            putExtra("EXTRA_VIDEO_FILE", file)
         }
-
-        // TODO Start EditorActivity
-        //val activityIntent = Intent(this, EditorActivity::class.java)
-        //startActivity(activityIntent)
+        startActivity(intent)
     }
 
     // --- MusicEditListener Implementation ---
