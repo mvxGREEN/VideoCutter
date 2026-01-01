@@ -50,7 +50,7 @@
             android:id="@+id/range_slider"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:stepSize="100.0"
+            android:stepSize="1"
             app:thumbColor="@color/gmaGreenDarkMono"
             app:trackColorActive="@color/gmaGreenDarkMono"
             app:trackColorInactive="@android:color/darker_gray"

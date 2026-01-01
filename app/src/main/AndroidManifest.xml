@@ -31,9 +31,8 @@
         <activity
             android:name=".EditorActivity"
             android:exported="false"
-            android:label="Tag Editor"
             android:windowSoftInputMode="adjustPan"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
