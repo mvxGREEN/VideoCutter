@@ -138,15 +138,13 @@ class EditorActivity : AppCompatActivity() {
 
     /**
      * Touch Interception Strategy:
-     * We use a transparent Overlay View ('touch_interceptor') ON TOP of the slider.
-     * 1. We set isClickable = false on the overlay. This ensures that if we return false,
-     * the event falls through to the RangeSlider below.
-     * 2. If touch is near a handle: Return FALSE -> Slider gets it -> Dragging works.
-     * 3. If touch is in the middle: Seek video & Return TRUE -> We consume it -> No snapping.
+     * 1. If touch is near a handle: Return FALSE -> Slider drags.
+     * 2. If touch is outside the trim range (Dead Zone): Return TRUE -> Consume event, do nothing.
+     * 3. If touch is inside the trim range: Return TRUE -> Seek video.
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun setupRangeSliderTouchInterception() {
-        // CRITICAL FIX: Disable clickability so ignored events fall through to the slider
+        // Disable clickability so ignored events (return false) fall through to the slider
         binding.touchInterceptor.isClickable = false
 
         binding.touchInterceptor.setOnTouchListener { v, event ->
@@ -169,26 +167,32 @@ class EditorActivity : AppCompatActivity() {
 
                 // 3. Hit Detection
                 val touchX = event.x
-                // 1.5x radius buffer makes handles easy to grab without blocking the middle
                 val hitThreshold = thumbRadiusPx * 1.5f
 
                 val distToStart = kotlin.math.abs(touchX - startThumbX)
                 val distToEnd = kotlin.math.abs(touchX - endThumbX)
 
                 if (distToStart < hitThreshold || distToEnd < hitThreshold) {
-                    // User aimed for a handle -> PASS THROUGH
-                    // Return false. Since isClickable is false, this goes to the Slider.
+                    // Touching a handle -> PASS THROUGH to RangeSlider for dragging
                     return@setOnTouchListener false
                 } else {
-                    // User clicked the empty track -> INTERCEPT & SEEK
+                    // Touching the track -> Calculate position
                     val touchXOffset = touchX - thumbRadiusPx
                     val touchXClamped = touchXOffset.coerceIn(0f, trackWidth.toFloat())
                     val clickRatio = touchXClamped / trackWidth
-
                     val seekTimeMs = (clickRatio * duration).toLong()
+
+                    // NEW: Check if touch is within the valid trim range
+                    if (seekTimeMs < startTimeMs || seekTimeMs > endTimeMs) {
+                        // Dead Zone: Before Start or After End
+                        // Return TRUE to consume the event (prevent Slider snap), but do NOT seek.
+                        return@setOnTouchListener true
+                    }
+
+                    // Inside Range -> Seek Video
                     seekTo(seekTimeMs)
 
-                    // Return true to STOP propagation. The Slider never gets this event.
+                    // Consume event
                     return@setOnTouchListener true
                 }
             }
