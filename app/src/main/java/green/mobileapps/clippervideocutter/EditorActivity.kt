@@ -72,10 +72,10 @@ class EditorActivity : AppCompatActivity() {
         exoPlayer?.prepare()
         exoPlayer?.playWhenReady = false
 
-        // TODO: Set a default artwork for audio if needed,
+        // Set a default artwork for audio if needed,
         // though PlayerView might handle metadata from Uri automatically.
         if (mediaFile?.isVideo == false) {
-            binding.playerView.defaultArtwork = getDrawable(this, android.R.drawable.ic_media_play)
+            binding.playerView.defaultArtwork = getDrawable(this, R.drawable.musi_note_432px)
         }
     }
 

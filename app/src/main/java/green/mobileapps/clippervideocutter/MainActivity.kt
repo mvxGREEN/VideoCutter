@@ -317,7 +317,7 @@ class MusicAdapter(
 
             com.bumptech.glide.Glide.with(itemView.context)
                 .load(file.uri)
-                .placeholder(if (file.isVideo) android.R.drawable.ic_menu_gallery else android.R.drawable.ic_media_play)
+                .placeholder(if (file.isVideo) android.R.drawable.ic_menu_gallery else R.drawable.musi_v2_dark)
                 .centerCrop()
                 .into(binding.imageAlbumArt)
 
