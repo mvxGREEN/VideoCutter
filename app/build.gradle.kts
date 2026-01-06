@@ -38,6 +38,9 @@ android {
     viewBinding {
         enable = true
     }
+    buildFeatures {
+        dataBinding = true
+    }
 }
 
 dependencies {
@@ -46,6 +49,7 @@ dependencies {
     // ui
     implementation(libs.glide)
     implementation(libs.swiperefreshlayout)
+    implementation(libs.androidx.databinding.runtime)
     annotationProcessor(libs.compiler)
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.material.v1110)

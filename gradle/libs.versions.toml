@@ -6,7 +6,7 @@ constraintlayout = "2.2.1"
 coreKtxVersion = "1.17.0"
 exifinterface = "1.4.1"
 glide = "4.16.0"
-kotlin = "2.0.21"
+kotlin = "2.1.0"
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -22,6 +22,7 @@ recyclerview = "1.4.0"
 media3version = "1.8.0"
 swiperefreshlayout = "1.2.0-rc01"
 swiperefreshlayoutVersion = "1.1.0"
+databindingRuntime = "8.13.2"
 
 [libraries]
 androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityKtx" }
@@ -54,6 +55,7 @@ material-v1110 = { module = "com.google.android.material:material", version.ref 
 media = { module = "androidx.media:media", version.ref = "media" }
 media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Ui" }
 swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayoutVersion" }
+androidx-databinding-runtime = { group = "androidx.databinding", name = "databinding-runtime", version.ref = "databindingRuntime" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
