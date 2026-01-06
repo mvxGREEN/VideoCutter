@@ -1,20 +1,21 @@
 package green.mobileapps.clippervideocutter
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.provider.MediaStore
-import android.util.Log
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -443,10 +444,11 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         viewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))
             .get(MusicViewModel::class.java)
 
-        val toolbarLayout = binding.toolbarSearch.getChildAt(0) as? ViewGroup
-        sortButton = toolbarLayout?.findViewById(R.id.button_sort)!!
-        sortDirectionButton = toolbarLayout.findViewById(R.id.button_sort_direction)!!
-        backButton = toolbarLayout.findViewById(R.id.button_back_edit)!!
+        setSupportActionBar(binding.toolbarSearch)
+
+        sortButton = binding.buttonSort
+        sortDirectionButton = binding.buttonSortDirection
+        backButton = binding.buttonBackEdit
 
         setupRecyclerView()
         setupSearchView()
@@ -457,6 +459,18 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         setupSwipeRefresh()
         setupObservers()
         checkPermissions()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        // Handle item selection.
+        when (item.getItemId()) {
+            else -> return super.onOptionsItemSelected(item)
+        }
     }
 
     private fun setupBackButton() {
@@ -569,6 +583,41 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
             requestNotificationPermissionLauncher.launch(notificationPermission)
         } else {
             viewModel.loadMediaFiles(applicationContext)
+        }
+    }
+
+
+
+    // open about page
+    fun onAboutClick(menuItem: MenuItem?) {
+        val aboutUrl = "https://mobileapps.green/"
+        val aboutIntent = Intent(Intent.ACTION_VIEW, Uri.parse(aboutUrl))
+        this@MainActivity.startActivity(aboutIntent)
+    }
+
+    // open privacy policy page
+    fun onPrivacyClick(menuItem: MenuItem?) {
+        val privacyUrl = "https://mobileapps.green/privacy-policy"
+        val privacyIntent = Intent(Intent.ACTION_VIEW, Uri.parse(privacyUrl))
+        this@MainActivity.startActivity(privacyIntent)
+    }
+
+    fun onRateClick(menuItem: MenuItem?) {
+        val appPackageName = getPackageName() // getPackageName() from Context or Activity object
+        try {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("market://details?id=" + appPackageName)
+                )
+            )
+        } catch (anfe: ActivityNotFoundException) {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=" + appPackageName)
+                )
+            )
         }
     }
 
