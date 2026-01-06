@@ -19,7 +19,7 @@
     <string name="msg_rate_dialog_body"><![CDATA[
         Enjoying the app?\nLet me know!\n\n-MaxGreen
     ]]></string>
-    <string name="msg_scanning_files">Scanning for audio files…</string>
+    <string name="msg_scanning_files">Scanning for media files…</string>
 
     // attribution
     <string name="audio_playback_attribution">M3A Music Player</string>
