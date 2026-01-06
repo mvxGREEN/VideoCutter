@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.ExportException
@@ -27,6 +28,7 @@ import java.io.File
 import java.util.Formatter
 import java.util.Locale
 
+@UnstableApi
 class EditorActivity : AppCompatActivity() {
 
     private lateinit var binding: EditorActivityBinding
