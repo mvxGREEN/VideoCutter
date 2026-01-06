@@ -26,6 +26,7 @@ import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
@@ -33,6 +34,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
+import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
 import green.mobileapps.clippervideocutter.databinding.ItemVideoFileBinding
 import green.mobileapps.clippervideocutter.databinding.MainActivityBinding
@@ -570,6 +572,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         }
     }
 
+    @OptIn(UnstableApi::class)
     fun startVideoEditor(file: MediaFile, index: Int) {
         if (musicAdapter.getEditingPosition() != RecyclerView.NO_POSITION) {
             exitEditingMode()
