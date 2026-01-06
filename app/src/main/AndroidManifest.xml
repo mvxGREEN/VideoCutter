@@ -16,7 +16,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_clipper_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.Dark.NoActionBar">
+        android:theme="@style/Theme.Material3.Dark.NoActionBar"
+        android:name=".ZApplication">
         <activity
             android:name=".MainActivity"
             android:exported="true"

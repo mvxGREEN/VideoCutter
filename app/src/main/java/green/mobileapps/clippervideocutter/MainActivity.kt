@@ -38,6 +38,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
 import green.mobileapps.clippervideocutter.databinding.ItemVideoFileBinding
 import green.mobileapps.clippervideocutter.databinding.MainActivityBinding
+import green.mobileapps.clippervideocutter.features.trim.VideoTrimmerActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -579,10 +580,16 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
             return
         }
         hideKeyboardAndClearFocus()
-        val intent = Intent(this, EditorActivity::class.java).apply {
+
+        // start trimmer activity
+        VideoTrimmerActivity.call(this, file.uri.toString())
+
+        /*
+        val intent = Intent(this, VideoTrimmerActivity::class.java).apply {
             putExtra("EXTRA_MEDIA_FILE", file) // UPDATED KEY
         }
         startActivity(intent)
+        */
     }
 
     override fun startEditing(position: Int) {

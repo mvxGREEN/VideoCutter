@@ -1,5 +1,6 @@
 package green.mobileapps.clippervideocutter.features.trim;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.net.Uri;
@@ -29,7 +30,7 @@ public class VideoTrimmerActivity extends AppCompatActivity implements VideoTrim
   private ActivityVideoTrimBinding mBinding;
   private ProgressDialog mProgressDialog;
 
-  public static void call(FragmentActivity from, String videoPath) {
+  public static void call(Activity from, String videoPath) {
     if (!TextUtils.isEmpty(videoPath)) {
       Bundle bundle = new Bundle();
       bundle.putString(VIDEO_PATH_KEY, videoPath);
@@ -47,7 +48,7 @@ public class VideoTrimmerActivity extends AppCompatActivity implements VideoTrim
 
     public void initUI() {
     mBinding = ActivityVideoTrimBinding.inflate(getLayoutInflater());
-    setContentView(mBinding.trimmerView.getRootView());
+    setContentView(mBinding.getRoot());
     Bundle bd = getIntent().getExtras();
     String path = "";
     if (bd != null) path = bd.getString(VIDEO_PATH_KEY);
