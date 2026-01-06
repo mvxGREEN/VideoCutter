@@ -67,6 +67,7 @@ dependencies {
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.media3.ui)
-    implementation("androidx.media3:media3-transformer:1.8.0")
-    implementation("androidx.media3:media3-common:1.8.0")
+    implementation(libs.androidx.media3.transformer)
+    implementation(libs.androidx.media3.common)
+
 }
