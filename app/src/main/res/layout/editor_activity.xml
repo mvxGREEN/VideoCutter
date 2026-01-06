@@ -140,6 +140,12 @@
             android:layout_height="match_parent"
             android:background="#222222" />
 
+        <View
+            android:id="@+id/view_selection_border"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:background="@drawable/bg_selection_border" />
+
         <com.google.android.material.slider.RangeSlider
             android:id="@+id/range_slider"
             android:layout_width="match_parent"

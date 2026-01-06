@@ -123,17 +123,42 @@ class EditorActivity : AppCompatActivity() {
             binding.textStartTime.text = formatTimeDecimal(startTimeMs)
             binding.textEndTime.text = formatTimeDecimal(endTimeMs)
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
+
+            // NEW: Update Border dynamically while dragging
+            updateSelectionBorder()
         }
 
-        binding.rangeSlider.addOnSliderTouchListener(object : RangeSlider.OnSliderTouchListener {
-            override fun onStartTrackingTouch(slider: RangeSlider) {
-                pausePlayback()
-            }
-            override fun onStopTrackingTouch(slider: RangeSlider) {
-                startTimeMs = slider.values[0].toLong()
-                endTimeMs = slider.values[1].toLong()
-            }
-        })
+        // ... (Keep existing onTouchListener setup) ...
+
+        // NEW: Initial Border Setup (Must wait for layout)
+        binding.rangeSlider.post {
+            updateSelectionBorder()
+        }
+    }
+
+    // ... (Keep existing setupRangeSliderTouchInterception) ...
+
+    /**
+     * Updates the Orange Border View to match the Start/End handles.
+     */
+    private fun updateSelectionBorder() {
+        val containerWidth = binding.recyclerThumbnails.width
+        if (durationMs > 0 && containerWidth > 0) {
+            // Calculate percentage positions (0.0 to 1.0)
+            val startRatio = startTimeMs.toFloat() / durationMs.toFloat()
+            val endRatio = endTimeMs.toFloat() / durationMs.toFloat()
+
+            // Convert to pixels relative to the container
+            val startX = startRatio * containerWidth
+            val endX = endRatio * containerWidth
+            val borderWidth = endX - startX
+
+            // Update View
+            val params = binding.viewSelectionBorder.layoutParams
+            params.width = borderWidth.toInt()
+            binding.viewSelectionBorder.layoutParams = params
+            binding.viewSelectionBorder.translationX = startX
+        }
     }
 
     /**
