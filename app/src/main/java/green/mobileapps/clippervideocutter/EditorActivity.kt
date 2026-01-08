@@ -217,7 +217,7 @@ class EditorActivity : AppCompatActivity() {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     // Stop Scrubbing
-                    //binding.textCursorLabel.visibility = View.GONE
+                    binding.textCursorLabel.visibility = View.GONE
                     return@setOnTouchListener true
                 }
             }
@@ -282,26 +282,88 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun setupTimePicker() {
+        // 1. Calculate Max Time Components
+        val maxTotalSeconds = durationMs / 1000
+        val maxMin = (maxTotalSeconds / 60).toInt()
+        val maxSecRemain = (maxTotalSeconds % 60).toInt()
+        val maxMsRemain = ((durationMs % 1000) / 100).toInt()
+
+        // 2. Initialize Pickers
+        binding.pickerMin.minValue = 0
+        binding.pickerMin.maxValue = maxMin
+        binding.pickerMin.wrapSelectorWheel = false // <--- Disable wrapping
+        binding.pickerMin.setFormatter { i -> String.format("%02d", i) }
+
+        binding.pickerSec.minValue = 0
+        binding.pickerSec.maxValue = 59
+        binding.pickerSec.wrapSelectorWheel = false // <--- Disable wrapping
+        binding.pickerSec.setFormatter { i -> String.format("%02d", i) }
+
+        binding.pickerMs.minValue = 0
+        binding.pickerMs.maxValue = 9
+        binding.pickerMs.wrapSelectorWheel = false // <--- Disable wrapping
+
+        // Helper to update limits based on currently selected values
+        fun updateLimits() {
+            val currentMin = binding.pickerMin.value
+
+            // Logic: If we are at the max minute, cap the seconds.
+            if (currentMin == maxMin) {
+                binding.pickerSec.maxValue = maxSecRemain
+                // If the old second value is now too high, clamp it
+                if (binding.pickerSec.value > maxSecRemain) {
+                    binding.pickerSec.value = maxSecRemain
+                }
+
+                // If we are at max min AND max sec, cap the ms
+                if (binding.pickerSec.value == maxSecRemain) {
+                    binding.pickerMs.maxValue = maxMsRemain
+                    if (binding.pickerMs.value > maxMsRemain) {
+                        binding.pickerMs.value = maxMsRemain
+                    }
+                } else {
+                    binding.pickerMs.maxValue = 9
+                }
+            } else {
+                // Not at max minute, so seconds allow 0-59 and ms 0-9
+                binding.pickerSec.maxValue = 59
+                binding.pickerMs.maxValue = 9
+            }
+        }
+
+        // 3. Add Listeners to trigger updates
+        binding.pickerMin.setOnValueChangedListener { _, _, _ -> updateLimits() }
+        binding.pickerSec.setOnValueChangedListener { _, _, _ -> updateLimits() }
+
+        // 4. Button Listeners
         binding.buttonPickerCancel.setOnClickListener { binding.layoutTimePicker.visibility = View.GONE }
+
         binding.buttonPickerOk.setOnClickListener {
-            val min = binding.inputMin.text.toString().toLongOrNull() ?: 0L
-            val sec = binding.inputSec.text.toString().toLongOrNull() ?: 0L
-            val ms100 = binding.inputMs.text.toString().toLongOrNull() ?: 0L
+            val min = binding.pickerMin.value.toLong()
+            val sec = binding.pickerSec.value.toLong()
+            val ms100 = binding.pickerMs.value.toLong()
+
             val newTimeMs = (min * 60000) + (sec * 1000) + (ms100 * 100)
+            val safeTimeMs = newTimeMs.coerceAtMost(durationMs)
 
             if (isPickingStartTime) {
-                if (newTimeMs < endTimeMs) {
-                    startTimeMs = newTimeMs
+                if (safeTimeMs < endTimeMs) {
+                    startTimeMs = safeTimeMs
                     binding.rangeSlider.setValues(startTimeMs.toFloat(), endTimeMs.toFloat())
-                } else Toast.makeText(this, "Start time must be before end time", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Start time must be before end time", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
             } else {
-                if (newTimeMs > startTimeMs && newTimeMs <= durationMs) {
-                    endTimeMs = newTimeMs
+                if (safeTimeMs > startTimeMs) {
+                    endTimeMs = safeTimeMs
                     binding.rangeSlider.setValues(startTimeMs.toFloat(), endTimeMs.toFloat())
-                } else Toast.makeText(this, "Invalid end time", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "End time must be after start time", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
             }
 
-            // UI Sync
             binding.textStartTime.text = formatTimeDecimal(startTimeMs)
             binding.textEndTime.text = formatTimeDecimal(endTimeMs)
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
@@ -315,17 +377,19 @@ class EditorActivity : AppCompatActivity() {
         isPickingStartTime = isStart
         binding.layoutTimePicker.visibility = View.VISIBLE
         binding.textPickerTitle.text = if (isStart) "Set start time" else "Set end time"
+
         val timeMs = if (isStart) startTimeMs else endTimeMs
 
         // Parse time into components
         val totalSecs = timeMs / 1000
-        val min = totalSecs / 60
-        val sec = totalSecs % 60
-        val decisecond = (timeMs % 1000) / 100
+        val min = (totalSecs / 60).toInt()
+        val sec = (totalSecs % 60).toInt()
+        val decisecond = ((timeMs % 1000) / 100).toInt()
 
-        binding.inputMin.setText(min.toString())
-        binding.inputSec.setText(sec.toString())
-        binding.inputMs.setText(decisecond.toString())
+        // Set Picker Values
+        binding.pickerMin.value = min
+        binding.pickerSec.value = sec
+        binding.pickerMs.value = decisecond
     }
 
     private fun updateCursorPosition() {
@@ -374,7 +438,7 @@ class EditorActivity : AppCompatActivity() {
         binding.buttonPlayPause.setImageResource(R.drawable.play_arrow_24px)
 
         // NEW: Hide tooltip when paused (optional, keeps UI clean)
-        //binding.textCursorLabel.visibility = View.GONE
+        binding.textCursorLabel.visibility = View.GONE
 
         handler.removeCallbacks(updateCursorRunnable)
     }
