@@ -165,7 +165,7 @@
 
         <View
             android:id="@+id/view_cursor"
-            android:layout_width="2dp"
+            android:layout_width="3dp"
             android:layout_height="match_parent"
             android:background="@color/gmaRedWhite"
             android:layout_gravity="start"
