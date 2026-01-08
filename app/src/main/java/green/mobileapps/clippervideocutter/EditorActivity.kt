@@ -1,10 +1,14 @@
 package green.mobileapps.clippervideocutter
 
 import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -15,8 +19,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.TransformationRequest
 import androidx.media3.transformer.Transformer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -25,6 +32,7 @@ import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.slider.RangeSlider
 import green.mobileapps.clippervideocutter.databinding.EditorActivityBinding
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Formatter
 import java.util.Locale
 import kotlin.math.abs
@@ -163,66 +171,103 @@ class EditorActivity : AppCompatActivity() {
 
     /**
      * Touch Interception Strategy:
-     * 1. If touch is near a handle: Return FALSE -> Slider drags.
-     * 2. If touch is outside the trim range (Dead Zone): Return TRUE -> Consume event, do nothing.
-     * 3. If touch is inside the trim range: Return TRUE -> Seek video.
+     * 1. Handles: Pass through to RangeSlider (return false).
+     * 2. Track: Intercept (return true).
+     * - Down/Move: Seek video, Show Tooltip, Update Tooltip Position.
+     * - Up/Cancel: Hide Tooltip.
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun setupRangeSliderTouchInterception() {
-        // Disable clickability so ignored events (return false) fall through to the slider
         binding.touchInterceptor.isClickable = false
 
         binding.touchInterceptor.setOnTouchListener { v, event ->
-            if (event.action == MotionEvent.ACTION_DOWN) {
-                val slider = binding.rangeSlider
-                val duration = (slider.valueTo - slider.valueFrom)
-                if (duration <= 0) return@setOnTouchListener false
+            val slider = binding.rangeSlider
+            val duration = (slider.valueTo - slider.valueFrom)
+            if (duration <= 0) return@setOnTouchListener false
 
-                // 1. Exact Visual Metrics (16dp)
-                val density = resources.displayMetrics.density
-                val thumbRadiusPx = (16 * density).toInt()
-                val trackWidth = v.width - (2 * thumbRadiusPx)
+            // Metrics
+            val density = resources.displayMetrics.density
+            val thumbRadiusPx = (16 * density).toInt()
+            val trackWidth = v.width - (2 * thumbRadiusPx)
 
-                // 2. Calculate Thumb Positions
-                val startRatio = (startTimeMs - slider.valueFrom) / duration
-                val endRatio = (endTimeMs - slider.valueFrom) / duration
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    // Check if touching a handle
+                    val startRatio = (startTimeMs - slider.valueFrom) / duration
+                    val endRatio = (endTimeMs - slider.valueFrom) / duration
+                    val startThumbX = thumbRadiusPx + (trackWidth * startRatio)
+                    val endThumbX = thumbRadiusPx + (trackWidth * endRatio)
 
-                val startThumbX = thumbRadiusPx + (trackWidth * startRatio)
-                val endThumbX = thumbRadiusPx + (trackWidth * endRatio)
+                    val touchX = event.x
+                    val hitThreshold = thumbRadiusPx * 1.5f
 
-                // 3. Hit Detection
-                val touchX = event.x
-                val hitThreshold = thumbRadiusPx * 1.5f
-
-                val distToStart = kotlin.math.abs(touchX - startThumbX)
-                val distToEnd = kotlin.math.abs(touchX - endThumbX)
-
-                if (distToStart < hitThreshold || distToEnd < hitThreshold) {
-                    // Touching a handle -> PASS THROUGH to RangeSlider for dragging
-                    return@setOnTouchListener false
-                } else {
-                    // Touching the track -> Calculate position
-                    val touchXOffset = touchX - thumbRadiusPx
-                    val touchXClamped = touchXOffset.coerceIn(0f, trackWidth.toFloat())
-                    val clickRatio = touchXClamped / trackWidth
-                    val seekTimeMs = (clickRatio * duration).toLong()
-
-                    // NEW: Check if touch is within the valid trim range
-                    if (seekTimeMs < startTimeMs || seekTimeMs > endTimeMs) {
-                        // Dead Zone: Before Start or After End
-                        // Return TRUE to consume the event (prevent Slider snap), but do NOT seek.
-                        return@setOnTouchListener true
+                    if (abs(touchX - startThumbX) < hitThreshold || abs(touchX - endThumbX) < hitThreshold) {
+                        return@setOnTouchListener false // Pass to Slider
+                    } else {
+                        // Start Scrubbing
+                        updateScrubbing(touchX, thumbRadiusPx, trackWidth, duration)
+                        return@setOnTouchListener true // Intercept
                     }
-
-                    // Inside Range -> Seek Video
-                    seekTo(seekTimeMs)
-
-                    // Consume event
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    // Continue Scrubbing
+                    // Note: We only get here if we returned true in ACTION_DOWN
+                    updateScrubbing(event.x, thumbRadiusPx, trackWidth, duration)
+                    return@setOnTouchListener true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // Stop Scrubbing
+                    binding.textCursorLabel.visibility = View.GONE
                     return@setOnTouchListener true
                 }
             }
             return@setOnTouchListener false
         }
+    }
+
+    /**
+     * Helper to handle the seeking logic and tooltip updates during a scrub.
+     */
+    private fun updateScrubbing(touchX: Float, thumbOffset: Int, trackWidth: Int, duration: Float) {
+        // 1. Calculate Time
+        val touchXOffset = touchX - thumbOffset
+        val touchXClamped = touchXOffset.coerceIn(0f, trackWidth.toFloat())
+        val clickRatio = touchXClamped / trackWidth
+        val seekTimeMs = (clickRatio * duration).toLong()
+
+        // 2. Check Dead Zone (Optional: prevent seeking outside bounds)
+        if (seekTimeMs < startTimeMs || seekTimeMs > endTimeMs) {
+            // If outside bounds, maybe just hide cursor label or show boundary time?
+            // For now, we just don't seek, but we ensure label is hidden/updates cleanly
+            // binding.textCursorLabel.visibility = View.GONE
+            // return
+        }
+
+        // 3. Seek
+        seekTo(seekTimeMs)
+
+        // 4. Update Tooltip Label
+        binding.textCursorLabel.visibility = View.VISIBLE
+        binding.textCursorLabel.text = formatTimeDecimal(seekTimeMs)
+
+        // Center label on the cursor
+        // We use the same 'touchXClamped' logic relative to the thumbnail container for translation
+        // Note: The thumbnail container starts at x=0 (visually) inside the frame, which matches our 'touchXClamped' calculation frame roughly.
+        // Actually, simpler is to align with view_cursor's translation:
+
+        val cursorX = binding.viewCursor.translationX
+        val labelWidth = binding.textCursorLabel.width.toFloat()
+        // Center the label: CursorPos - HalfLabelWidth
+        // Ensure we measure it if width is 0 (first frame)
+        if (labelWidth == 0f) {
+            binding.textCursorLabel.measure(0, 0)
+        }
+
+        // We clamp translation so tooltip doesn't fly off screen edges
+        val maxTrans = binding.layoutTimelineContainer.width - binding.textCursorLabel.measuredWidth
+        val safeTrans = (cursorX - (binding.textCursorLabel.measuredWidth / 2)).coerceIn(0f, maxTrans.toFloat())
+
+        binding.textCursorLabel.translationX = safeTrans
     }
 
     private fun setupButtons() {
@@ -336,43 +381,157 @@ class EditorActivity : AppCompatActivity() {
         pausePlayback()
         Toast.makeText(this, "Exporting...", Toast.LENGTH_SHORT).show()
 
-        val cacheDir = externalCacheDir ?: cacheDir
-        val tempFile = File(cacheDir, "temp_trim_${System.currentTimeMillis()}.mp4")
+        // 1. NEW: Copy the remote file to a local cache file we fully own
+        // This solves the 'avc: denied dmabuf' error by giving us a clean file descriptor
+        val localInputFile = copyUriToCache(this, sourceUri)
+        if (localInputFile == null) {
+            Toast.makeText(this, "Failed to load video file", Toast.LENGTH_SHORT).show()
+            return
+        }
 
+        val tempFile = File(externalCacheDir ?: cacheDir, "temp_trim_${System.currentTimeMillis()}.mp4")
+
+        // 2. Configure Clipping
         val clippingConfiguration = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startTimeMs)
             .setEndPositionMs(endTimeMs)
             .build()
 
+        // 3. Build MediaItem using the LOCAL FILE, not the original URI
         val mediaItem = MediaItem.Builder()
-            .setUri(sourceUri)
+            .setUri(localInputFile.toURI().toString()) // Use local path
             .setClippingConfiguration(clippingConfiguration)
+            .build()
+
+        // 4. Force Transmuxing (Passthrough)
+        val editedMediaItem = EditedMediaItem.Builder(mediaItem).build()
+        val sequence = EditedMediaItemSequence.Builder(editedMediaItem).build()
+
+        val composition = Composition.Builder(listOf(sequence))
+            .setTransmuxVideo(true)
+            .setTransmuxAudio(true)
             .build()
 
         transformer = Transformer.Builder(this)
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     saveToGallery(tempFile)
+                    localInputFile.delete() // Clean up the input copy
                 }
 
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                    Toast.makeText(this@EditorActivity, "Export Failed", Toast.LENGTH_LONG).show()
+                    exportException.printStackTrace()
+                    localInputFile.delete() // Clean up on error
+                    Toast.makeText(this@EditorActivity, "Export Failed: ${exportException.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             })
             .build()
 
-        transformer?.start(mediaItem, tempFile.absolutePath)
+        transformer?.start(composition, tempFile.absolutePath)
+    }
+
+    private fun copyUriToCache(context: Context, sourceUri: android.net.Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(sourceUri) ?: return null
+            val outputFile = File(context.cacheDir, "input_cache_${System.currentTimeMillis()}.mp4")
+            val outputStream = FileOutputStream(outputFile)
+
+            inputStream.use { input ->
+                outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
+            outputFile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     private fun saveToGallery(tempFile: File) {
-        // Logic identical to previous steps (ContentResolver insert)
-        // ... (Omitted for brevity as it was provided in previous step)
-        // Ensure you close the activity on success
-        Toast.makeText(this, "Saved to Gallery!", Toast.LENGTH_SHORT).show()
-        finish()
+        try {
+            val originalTitle = mediaFile?.title ?: "media"
+            val timestamp = System.currentTimeMillis() / 1000
+            val newTitle = "${originalTitle}_trim_$timestamp"
+            val isVideo = mediaFile?.isVideo == true
+
+
+            val values = ContentValues().apply {
+                put(
+                    MediaStore.MediaColumns.DISPLAY_NAME,
+                    "$newTitle.mp4"
+                ) // Transformer output is usually MP4/M4A
+                put(MediaStore.MediaColumns.DATE_ADDED, timestamp)
+
+                if (isVideo) {
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
+                        put(MediaStore.Video.Media.IS_PENDING, 1)
+                    }
+                } else {
+                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4") // Audio in MP4 container
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                        put(MediaStore.Audio.Media.IS_PENDING, 1)
+                    }
+                }
+            }
+
+            val collection = if (isVideo) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Video.Media.getContentUri(
+                    MediaStore.VOLUME_EXTERNAL_PRIMARY
+                )
+                else MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            } else {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Audio.Media.getContentUri(
+                    MediaStore.VOLUME_EXTERNAL_PRIMARY
+                )
+                else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            }
+
+
+            val itemUri = contentResolver.insert(collection, values)
+
+            if (itemUri != null) {
+
+                contentResolver.openOutputStream(itemUri).use { outStream ->
+                    tempFile.inputStream().use { inputStream -> inputStream.copyTo(outStream!!) }
+
+
+                }
+
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    contentResolver.update(itemUri, values, null, null)
+                }
+
+                Toast.makeText(
+                    this,
+                    if (isVideo) "Saved to Movies!" else "Saved to Music!",
+                    Toast.LENGTH_LONG
+                ).show()
+
+
+
+                tempFile.delete()
+
+
+                finish()
+            } else {
+                throw Exception("Failed to create MediaStore entry")
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error saving file", Toast.LENGTH_LONG).show()
+        }
     }
 
-    override fun onDestroy() {
+
+        override fun onDestroy() {
         super.onDestroy()
         exoPlayer?.release()
         handler.removeCallbacks(updateCursorRunnable)

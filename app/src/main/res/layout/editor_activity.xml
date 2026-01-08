@@ -151,8 +151,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="start"
-            android:layout_marginStart="-24dp"
-            android:layout_marginEnd="-24dp"
+            android:layout_marginStart="-25dp"
+            android:layout_marginEnd="-25dp"
             app:thumbRadius="16dp"
             app:haloRadius="16dp"
             app:thumbColor="@color/colorPrimary"
@@ -160,15 +160,32 @@
             app:trackColorInactive="#80000000"
             app:haloColor="@color/colorPrimaryDark"
             android:padding="0dp"
-            app:trackHeight="64dp" />
+            app:trackHeight="64dp"
+            app:labelBehavior="gone"/>
 
         <View
             android:id="@+id/view_cursor"
             android:layout_width="2dp"
             android:layout_height="match_parent"
-            android:background="@android:color/white"
+            android:background="@color/gmaRedWhite"
             android:layout_gravity="start"
             android:translationX="0dp" />
+
+        <TextView
+            android:id="@+id/text_cursor_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginTop="-35dp"
+            android:background="@drawable/bg_tooltip"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:text="0:00.0"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:visibility="visible"
+            tools:translationX="100dp"/>
 
         <View
             android:id="@+id/touch_interceptor"
