@@ -217,7 +217,7 @@ class EditorActivity : AppCompatActivity() {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     // Stop Scrubbing
-                    binding.textCursorLabel.visibility = View.GONE
+                    //binding.textCursorLabel.visibility = View.GONE
                     return@setOnTouchListener true
                 }
             }
@@ -330,25 +330,52 @@ class EditorActivity : AppCompatActivity() {
 
     private fun updateCursorPosition() {
         val currentPos = exoPlayer?.currentPosition ?: 0L
-        // Use the thumbnails width (the visual track width)
         val timelineWidth = binding.recyclerThumbnails.width
 
         if (durationMs > 0 && timelineWidth > 0) {
             val progress = currentPos.toFloat() / durationMs.toFloat()
             val translationX = progress * timelineWidth
+
+            // 1. Move the Playback Cursor
             binding.viewCursor.translationX = translationX
+
+            // 2. NEW: Update Tooltip Text and Position
+            binding.textCursorLabel.text = formatTimeDecimal(currentPos)
+
+            // Measure the label if it hasn't been drawn yet so we can center it
+            if (binding.textCursorLabel.width == 0) {
+                binding.textCursorLabel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+            }
+
+            val labelWidth = binding.textCursorLabel.measuredWidth
+            val containerWidth = binding.layoutTimelineContainer.width
+
+            // Calculate Centered Position: CursorX - (LabelWidth / 2)
+            // We clamp it so it doesn't fly off the left or right edges
+            val maxTrans = (containerWidth - labelWidth).toFloat().coerceAtLeast(0f)
+            val tooltipX = (translationX - (labelWidth / 2)).coerceIn(0f, maxTrans)
+
+            binding.textCursorLabel.translationX = tooltipX
         }
     }
 
     private fun startPlayback() {
         exoPlayer?.play()
         binding.buttonPlayPause.setImageResource(R.drawable.pause_24px)
+
+        // NEW: Show tooltip during playback
+        binding.textCursorLabel.visibility = View.VISIBLE
+
         handler.post(updateCursorRunnable)
     }
 
     private fun pausePlayback() {
         exoPlayer?.pause()
         binding.buttonPlayPause.setImageResource(R.drawable.play_arrow_24px)
+
+        // NEW: Hide tooltip when paused (optional, keeps UI clean)
+        //binding.textCursorLabel.visibility = View.GONE
+
         handler.removeCallbacks(updateCursorRunnable)
     }
 
@@ -452,55 +479,43 @@ class EditorActivity : AppCompatActivity() {
         try {
             val originalTitle = mediaFile?.title ?: "media"
             val timestamp = System.currentTimeMillis() / 1000
-            val newTitle = "${originalTitle}_trim_$timestamp"
             val isVideo = mediaFile?.isVideo == true
 
+            // 1. Determine Extension and Mime Type
+            // Note: Transformer outputs MP4 container. For audio, we use .m4a
+            val extension = if (isVideo) "mp4" else "m4a"
+            val mimeType = if (isVideo) "video/mp4" else "audio/mp4"
+            val directory = if (isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_MUSIC
+
+            val newTitle = "${originalTitle}_trim_$timestamp"
 
             val values = ContentValues().apply {
-                put(
-                    MediaStore.MediaColumns.DISPLAY_NAME,
-                    "$newTitle.mp4"
-                ) // Transformer output is usually MP4/M4A
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$newTitle.$extension") // <--- Fixed Extension
                 put(MediaStore.MediaColumns.DATE_ADDED, timestamp)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
 
-                if (isVideo) {
-                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES)
-                        put(MediaStore.Video.Media.IS_PENDING, 1)
-                    }
-                } else {
-                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4") // Audio in MP4 container
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC)
-                        put(MediaStore.Audio.Media.IS_PENDING, 1)
-                    }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, directory) // <--- Fixed Directory
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
 
+            // ... (Rest of your existing insert/copy logic remains the same) ...
+
             val collection = if (isVideo) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Video.Media.getContentUri(
-                    MediaStore.VOLUME_EXTERNAL_PRIMARY
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                 else MediaStore.Video.Media.EXTERNAL_CONTENT_URI
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Audio.Media.getContentUri(
-                    MediaStore.VOLUME_EXTERNAL_PRIMARY
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                 else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             }
-
 
             val itemUri = contentResolver.insert(collection, values)
 
             if (itemUri != null) {
-
                 contentResolver.openOutputStream(itemUri).use { outStream ->
                     tempFile.inputStream().use { inputStream -> inputStream.copyTo(outStream!!) }
-
-
                 }
-
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     values.clear()
@@ -508,17 +523,8 @@ class EditorActivity : AppCompatActivity() {
                     contentResolver.update(itemUri, values, null, null)
                 }
 
-                Toast.makeText(
-                    this,
-                    if (isVideo) "Saved to Movies!" else "Saved to Music!",
-                    Toast.LENGTH_LONG
-                ).show()
-
-
-
+                Toast.makeText(this, "Saved to ${if(isVideo) "Movies" else "Music"}", Toast.LENGTH_LONG).show()
                 tempFile.delete()
-
-
                 finish()
             } else {
                 throw Exception("Failed to create MediaStore entry")
