@@ -120,7 +120,7 @@
             android:padding="8dp"
             android:clipToPadding="false"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            tools:listitem="@layout/item_video_file"
+            tools:listitem="@layout/item_media_file"
             />
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -149,7 +149,7 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <include
-        layout="@layout/item_video_file"
+        layout="@layout/item_media_file"
         android:visibility="gone"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

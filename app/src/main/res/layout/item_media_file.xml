@@ -15,12 +15,12 @@
         android:id="@+id/item_root_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <ImageView
             android:id="@+id/image_album_art"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@drawable/default_album_art_144px"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -28,34 +28,53 @@
             android:contentDescription="@string/cd_album_art"
             android:scaleType="centerCrop" />
 
-        <!-- Display Mode: TextViews (Default) -->
         <TextView
             android:id="@+id/text_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:textAppearance="?attr/textAppearanceTitleMedium"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:textColor="@color/titleColor"
+            android:singleLine="true"
+            android:ellipsize="end"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_album_art"
             app:layout_constraintEnd_toStartOf="@id/button_save_edit"
+            app:layout_constraintBottom_toTopOf="@+id/text_duration"
+            app:layout_constraintVertical_chainStyle="packed"
             tools:text="Song Title Here (feat. Artist)" />
 
         <TextView
-            android:id="@+id/text_artist"
+            android:id="@+id/text_duration"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textSize="12sp"
+            android:textColor="@color/subtitleColor"
+            android:singleLine="true"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/text_title"
+            app:layout_constraintStart_toStartOf="@id/text_title"
+            app:layout_constraintEnd_toStartOf="@id/button_save_edit"
+            app:layout_constraintBottom_toTopOf="@+id/text_details"
+            tools:text="3:45" />
+
+        <TextView
+            android:id="@+id/text_details"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textAppearance="?attr/textAppearanceBodySmall"
             android:textSize="11sp"
-            android:textColor="@color/subtitleColor"
-            app:layout_constraintTop_toBottomOf="@id/text_title"
+            android:textColor="#808080"
+            android:singleLine="true"
+            android:ellipsize="end"
+            app:layout_constraintTop_toBottomOf="@id/text_duration"
             app:layout_constraintStart_toStartOf="@id/text_title"
             app:layout_constraintEnd_toStartOf="@id/button_save_edit"
-            tools:text="Artist Name"
-            app:layout_constraintBottom_toBottomOf="parent" />
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:text="1920x1080 ✦ 24.5 MB" />
 
-        <!-- Edit Mode: EditTexts (Initially GONE) -->
         <EditText
             android:id="@+id/edit_text_title"
             android:layout_width="0dp"
@@ -64,14 +83,14 @@
             android:singleLine="true"
             android:imeOptions="actionNext"
             android:inputType="textCapWords"
-            android:textSize="12sp"
+            android:textSize="14sp"
             android:textColor="@color/titleColor"
             android:visibility="gone"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toEndOf="@id/image_album_art"
             app:layout_constraintEnd_toStartOf="@id/button_save_edit"
-            tools:text="Song Title Here (feat. Artist)"
-            tools:visibility="visible"/>
+            tools:text="Song Title Here"
+            tools:visibility="gone"/>
 
         <EditText
             android:id="@+id/edit_text_artist"
@@ -80,17 +99,15 @@
             android:singleLine="true"
             android:imeOptions="actionDone"
             android:inputType="textCapWords"
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:textColor="@color/subtitleColor"
             android:visibility="gone"
             app:layout_constraintTop_toBottomOf="@id/edit_text_title"
             app:layout_constraintStart_toStartOf="@id/edit_text_title"
             app:layout_constraintEnd_toStartOf="@id/button_save_edit"
             tools:text="Artist Name"
-            app:layout_constraintBottom_toBottomOf="parent"
-            tools:visibility="visible"/>
+            tools:visibility="gone"/>
 
-        <!-- Save Button (Initially GONE) -->
         <ImageButton
             android:id="@+id/button_save_edit"
             android:layout_width="wrap_content"

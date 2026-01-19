@@ -13,9 +13,9 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.provider.MediaStore
+import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.Menu
-import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
@@ -37,7 +37,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
-import green.mobileapps.clippervideocutter.databinding.ItemVideoFileBinding
+import green.mobileapps.clippervideocutter.databinding.ItemMediaFileBinding
 import green.mobileapps.clippervideocutter.databinding.MainActivityBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +46,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 // --- SORTING DEFINITIONS ---
@@ -59,17 +60,17 @@ interface MusicEditListener {
     fun saveEditAndExit(mediaFile: MediaFile, newTitle: String, newArtist: String)
 }
 
-// --- DATA MODEL REFACTOR ---
+// --- DATA MODEL ---
 data class MediaFile(
     val id: Long,
     val uri: Uri,
     val title: String,
     val duration: Long,
     val size: Long,
-    val resolution: String?, // Null for audio
-    val artist: String?,     // Null for video usually
+    val resolution: String?,
+    val artist: String?,
     val dateAdded: Long,
-    val isVideo: Boolean     // Flag to distinguish types
+    val isVideo: Boolean
 ) : Parcelable {
     constructor(parcel: Parcel) : this(
         parcel.readLong(),
@@ -160,10 +161,7 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
 
         scope.launch {
             val combinedList = mutableListOf<MediaFile>()
-
-            // 1. Load Videos
             combinedList.addAll(loadVideos(context))
-            // 2. Load Audio
             combinedList.addAll(loadAudio(context))
 
             PlaylistRepository.setFiles(combinedList)
@@ -219,7 +217,6 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.DATE_ADDED
         )
-        // Exclude generic sounds/ringtones if desired by checking IS_MUSIC, but keeping simple here
         val selection = "${MediaStore.Audio.Media.DURATION} > 0"
 
         try {
@@ -304,7 +301,7 @@ class MusicAdapter(
     fun getEditingPosition(): Int = editingPosition
     fun getCurrentList(): List<MediaFile> = mediaList
 
-    inner class MusicViewHolder(private val binding: ItemVideoFileBinding) :
+    inner class MusicViewHolder(private val binding: ItemMediaFileBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(file: MediaFile, index: Int) {
@@ -322,29 +319,37 @@ class MusicAdapter(
                 .centerCrop()
                 .into(binding.imageAlbumArt)
 
+            // --- Updated Layout Binding ---
+            // 1. Title
             binding.textTitle.text = file.title
 
-            // Display Artist for Audio, Resolution for Video
-            binding.textArtist.text = if (file.isVideo) {
-                file.resolution ?: "Video"
-            } else {
-                file.artist ?: "Unknown Artist"
-            }
+            // 2. Duration (Middle Row)
+            binding.textDuration.text = formatDuration(file.duration)
 
+            // 3. Resolution | Size (Bottom Row)
+            val res = file.resolution ?: "Audio"
+            val sizeStr = Formatter.formatFileSize(itemView.context, file.size)
+            binding.textDetails.text = "$res ✦ $sizeStr"
+
+            // Setup Edit Text Values
             binding.editTextTitle.setText(file.title)
             binding.editTextArtist.setText(if (file.isVideo) "" else file.artist)
 
             // Visibility logic for Edit Mode
             if (isEditing) {
                 binding.textTitle.visibility = View.GONE
-                binding.textArtist.visibility = View.GONE
+                binding.textDuration.visibility = View.GONE
+                binding.textDetails.visibility = View.GONE
+
                 binding.editTextTitle.visibility = View.VISIBLE
                 // Only show second edit text if it's audio (for artist), or hide for video
                 binding.editTextArtist.visibility = if(file.isVideo) View.GONE else View.VISIBLE
                 binding.buttonSaveEdit.visibility = View.VISIBLE
             } else {
                 binding.textTitle.visibility = View.VISIBLE
-                binding.textArtist.visibility = View.VISIBLE
+                binding.textDuration.visibility = View.VISIBLE
+                binding.textDetails.visibility = View.VISIBLE
+
                 binding.editTextTitle.visibility = View.GONE
                 binding.editTextArtist.visibility = View.GONE
                 binding.buttonSaveEdit.visibility = View.GONE
@@ -360,10 +365,17 @@ class MusicAdapter(
                 editListener.saveEditAndExit(file, newTitle, newArtist)
             }
         }
+
+        private fun formatDuration(durationMs: Long): String {
+            val seconds = durationMs / 1000
+            val m = seconds / 60
+            val s = seconds % 60
+            return String.format(Locale.getDefault(), "%d:%02d", m, s)
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MusicViewHolder {
-        val binding = ItemVideoFileBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemMediaFileBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return MusicViewHolder(binding)
     }
 
@@ -586,8 +598,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         }
     }
 
-
-
     // open about page
     fun onAboutClick(menuItem: MenuItem?) {
         val aboutUrl = "https://mobileapps.green/"
@@ -603,7 +613,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     }
 
     fun onRateClick(menuItem: MenuItem?) {
-        val appPackageName = getPackageName() // getPackageName() from Context or Activity object
+        val appPackageName = getPackageName()
         try {
             startActivity(
                 Intent(
@@ -631,13 +641,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
 
         // start trimmer activity
         val intent = Intent(this, EditorActivity::class.java).apply {
-            putExtra("EXTRA_MEDIA_FILE", file) // UPDATED KEY
+            putExtra("EXTRA_MEDIA_FILE", file)
         }
         startActivity(intent)
-
-        /* TODO remove or implement
-        VideoTrimmerActivity.call(this, file.uri.toString())
-        */
     }
 
     override fun startEditing(position: Int) {
