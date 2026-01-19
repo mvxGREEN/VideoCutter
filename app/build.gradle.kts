@@ -15,8 +15,8 @@ android {
         applicationId = "green.mobileapps.clippervideocutter"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.1"
+        versionCode = 4
+        versionName = "1.3.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
