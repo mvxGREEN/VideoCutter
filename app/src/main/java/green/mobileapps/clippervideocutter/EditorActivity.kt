@@ -3,12 +3,16 @@ package green.mobileapps.clippervideocutter
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -23,17 +27,14 @@ import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
-import androidx.media3.transformer.TransformationRequest
 import androidx.media3.transformer.Transformer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
-import com.google.android.material.slider.RangeSlider
 import green.mobileapps.clippervideocutter.databinding.EditorActivityBinding
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Formatter
 import java.util.Locale
 import kotlin.math.abs
 
@@ -67,10 +68,27 @@ class EditorActivity : AppCompatActivity() {
         binding = EditorActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        @Suppress("DEPRECATION")
-        mediaFile = intent.getParcelableExtra("EXTRA_MEDIA_FILE")
+        // --- UPDATED: Handle Share/View Intents ---
+        if (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_SEND) {
+            val uri = if (intent.action == Intent.ACTION_SEND) {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            } else {
+                intent.data
+            }
+
+            if (uri != null) {
+                mediaFile = loadMediaFileFromUri(uri)
+            }
+        } else {
+            // Standard launch from Main Activity
+            @Suppress("DEPRECATION")
+            mediaFile = intent.getParcelableExtra("EXTRA_MEDIA_FILE")
+        }
+        // ------------------------------------------
 
         if (mediaFile == null) {
+            Toast.makeText(this, "Could not load file", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -79,7 +97,7 @@ class EditorActivity : AppCompatActivity() {
         setupTimeline()
         setupButtons()
         setupTimePicker()
-        setupRangeSliderTouchInterception() // <--- The Fix for Touch Behavior
+        setupRangeSliderTouchInterception()
     }
 
     private fun setupPlayer() {
@@ -114,7 +132,6 @@ class EditorActivity : AppCompatActivity() {
             binding.recyclerThumbnails.adapter = adapter
         }
 
-        // Listener for Dragging Handles
         binding.rangeSlider.addOnChangeListener { slider, value, fromUser ->
             val values = slider.values
             val newStart = values[0].toLong()
@@ -132,36 +149,24 @@ class EditorActivity : AppCompatActivity() {
             binding.textEndTime.text = formatTimeDecimal(endTimeMs)
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
 
-            // NEW: Update Border dynamically while dragging
             updateSelectionBorder()
         }
 
-        // ... (Keep existing onTouchListener setup) ...
-
-        // NEW: Initial Border Setup (Must wait for layout)
         binding.rangeSlider.post {
             updateSelectionBorder()
         }
     }
 
-    // ... (Keep existing setupRangeSliderTouchInterception) ...
-
-    /**
-     * Updates the Orange Border View to match the Start/End handles.
-     */
     private fun updateSelectionBorder() {
         val containerWidth = binding.recyclerThumbnails.width
         if (durationMs > 0 && containerWidth > 0) {
-            // Calculate percentage positions (0.0 to 1.0)
             val startRatio = startTimeMs.toFloat() / durationMs.toFloat()
             val endRatio = endTimeMs.toFloat() / durationMs.toFloat()
 
-            // Convert to pixels relative to the container
             val startX = startRatio * containerWidth
             val endX = endRatio * containerWidth
             val borderWidth = endX - startX
 
-            // Update View
             val params = binding.viewSelectionBorder.layoutParams
             params.width = borderWidth.toInt()
             binding.viewSelectionBorder.layoutParams = params
@@ -169,13 +174,6 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Touch Interception Strategy:
-     * 1. Handles: Pass through to RangeSlider (return false).
-     * 2. Track: Intercept (return true).
-     * - Down/Move: Seek video, Show Tooltip, Update Tooltip Position.
-     * - Up/Cancel: Hide Tooltip.
-     */
     @SuppressLint("ClickableViewAccessibility")
     private fun setupRangeSliderTouchInterception() {
         binding.touchInterceptor.isClickable = false
@@ -185,14 +183,12 @@ class EditorActivity : AppCompatActivity() {
             val duration = (slider.valueTo - slider.valueFrom)
             if (duration <= 0) return@setOnTouchListener false
 
-            // Metrics
             val density = resources.displayMetrics.density
             val thumbRadiusPx = (16 * density).toInt()
             val trackWidth = v.width - (2 * thumbRadiusPx)
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    // Check if touching a handle
                     val startRatio = (startTimeMs - slider.valueFrom) / duration
                     val endRatio = (endTimeMs - slider.valueFrom) / duration
                     val startThumbX = thumbRadiusPx + (trackWidth * startRatio)
@@ -202,21 +198,17 @@ class EditorActivity : AppCompatActivity() {
                     val hitThreshold = thumbRadiusPx * 1.5f
 
                     if (abs(touchX - startThumbX) < hitThreshold || abs(touchX - endThumbX) < hitThreshold) {
-                        return@setOnTouchListener false // Pass to Slider
+                        return@setOnTouchListener false
                     } else {
-                        // Start Scrubbing
                         updateScrubbing(touchX, thumbRadiusPx, trackWidth, duration)
-                        return@setOnTouchListener true // Intercept
+                        return@setOnTouchListener true
                     }
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    // Continue Scrubbing
-                    // Note: We only get here if we returned true in ACTION_DOWN
                     updateScrubbing(event.x, thumbRadiusPx, trackWidth, duration)
                     return@setOnTouchListener true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    // Stop Scrubbing
                     binding.textCursorLabel.visibility = View.GONE
                     return@setOnTouchListener true
                 }
@@ -225,45 +217,22 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Helper to handle the seeking logic and tooltip updates during a scrub.
-     */
     private fun updateScrubbing(touchX: Float, thumbOffset: Int, trackWidth: Int, duration: Float) {
-        // 1. Calculate Time
         val touchXOffset = touchX - thumbOffset
         val touchXClamped = touchXOffset.coerceIn(0f, trackWidth.toFloat())
         val clickRatio = touchXClamped / trackWidth
         val seekTimeMs = (clickRatio * duration).toLong()
 
-        // 2. Check Dead Zone (Optional: prevent seeking outside bounds)
-        if (seekTimeMs < startTimeMs || seekTimeMs > endTimeMs) {
-            // If outside bounds, maybe just hide cursor label or show boundary time?
-            // For now, we just don't seek, but we ensure label is hidden/updates cleanly
-            // binding.textCursorLabel.visibility = View.GONE
-            // return
-        }
-
-        // 3. Seek
         seekTo(seekTimeMs)
 
-        // 4. Update Tooltip Label
         binding.textCursorLabel.visibility = View.VISIBLE
         binding.textCursorLabel.text = formatTimeDecimal(seekTimeMs)
 
-        // Center label on the cursor
-        // We use the same 'touchXClamped' logic relative to the thumbnail container for translation
-        // Note: The thumbnail container starts at x=0 (visually) inside the frame, which matches our 'touchXClamped' calculation frame roughly.
-        // Actually, simpler is to align with view_cursor's translation:
-
-        val cursorX = binding.viewCursor.translationX
-        val labelWidth = binding.textCursorLabel.width.toFloat()
-        // Center the label: CursorPos - HalfLabelWidth
-        // Ensure we measure it if width is 0 (first frame)
-        if (labelWidth == 0f) {
+        if (binding.textCursorLabel.width == 0f.toInt()) {
             binding.textCursorLabel.measure(0, 0)
         }
 
-        // We clamp translation so tooltip doesn't fly off screen edges
+        val cursorX = binding.viewCursor.translationX
         val maxTrans = binding.layoutTimelineContainer.width - binding.textCursorLabel.measuredWidth
         val safeTrans = (cursorX - (binding.textCursorLabel.measuredWidth / 2)).coerceIn(0f, maxTrans.toFloat())
 
@@ -282,40 +251,34 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun setupTimePicker() {
-        // 1. Calculate Max Time Components
         val maxTotalSeconds = durationMs / 1000
         val maxMin = (maxTotalSeconds / 60).toInt()
         val maxSecRemain = (maxTotalSeconds % 60).toInt()
         val maxMsRemain = ((durationMs % 1000) / 100).toInt()
 
-        // 2. Initialize Pickers
         binding.pickerMin.minValue = 0
         binding.pickerMin.maxValue = maxMin
-        binding.pickerMin.wrapSelectorWheel = false // <--- Disable wrapping
+        binding.pickerMin.wrapSelectorWheel = false
         binding.pickerMin.setFormatter { i -> String.format("%02d", i) }
 
         binding.pickerSec.minValue = 0
         binding.pickerSec.maxValue = 59
-        binding.pickerSec.wrapSelectorWheel = false // <--- Disable wrapping
+        binding.pickerSec.wrapSelectorWheel = false
         binding.pickerSec.setFormatter { i -> String.format("%02d", i) }
 
         binding.pickerMs.minValue = 0
         binding.pickerMs.maxValue = 9
-        binding.pickerMs.wrapSelectorWheel = false // <--- Disable wrapping
+        binding.pickerMs.wrapSelectorWheel = false
 
-        // Helper to update limits based on currently selected values
         fun updateLimits() {
             val currentMin = binding.pickerMin.value
 
-            // Logic: If we are at the max minute, cap the seconds.
             if (currentMin == maxMin) {
                 binding.pickerSec.maxValue = maxSecRemain
-                // If the old second value is now too high, clamp it
                 if (binding.pickerSec.value > maxSecRemain) {
                     binding.pickerSec.value = maxSecRemain
                 }
 
-                // If we are at max min AND max sec, cap the ms
                 if (binding.pickerSec.value == maxSecRemain) {
                     binding.pickerMs.maxValue = maxMsRemain
                     if (binding.pickerMs.value > maxMsRemain) {
@@ -325,17 +288,14 @@ class EditorActivity : AppCompatActivity() {
                     binding.pickerMs.maxValue = 9
                 }
             } else {
-                // Not at max minute, so seconds allow 0-59 and ms 0-9
                 binding.pickerSec.maxValue = 59
                 binding.pickerMs.maxValue = 9
             }
         }
 
-        // 3. Add Listeners to trigger updates
         binding.pickerMin.setOnValueChangedListener { _, _, _ -> updateLimits() }
         binding.pickerSec.setOnValueChangedListener { _, _, _ -> updateLimits() }
 
-        // 4. Button Listeners
         binding.buttonPickerCancel.setOnClickListener { binding.layoutTimePicker.visibility = View.GONE }
 
         binding.buttonPickerOk.setOnClickListener {
@@ -380,13 +340,11 @@ class EditorActivity : AppCompatActivity() {
 
         val timeMs = if (isStart) startTimeMs else endTimeMs
 
-        // Parse time into components
         val totalSecs = timeMs / 1000
         val min = (totalSecs / 60).toInt()
         val sec = (totalSecs % 60).toInt()
         val decisecond = ((timeMs % 1000) / 100).toInt()
 
-        // Set Picker Values
         binding.pickerMin.value = min
         binding.pickerSec.value = sec
         binding.pickerMs.value = decisecond
@@ -400,13 +358,10 @@ class EditorActivity : AppCompatActivity() {
             val progress = currentPos.toFloat() / durationMs.toFloat()
             val translationX = progress * timelineWidth
 
-            // 1. Move the Playback Cursor
             binding.viewCursor.translationX = translationX
 
-            // 2. NEW: Update Tooltip Text and Position
             binding.textCursorLabel.text = formatTimeDecimal(currentPos)
 
-            // Measure the label if it hasn't been drawn yet so we can center it
             if (binding.textCursorLabel.width == 0) {
                 binding.textCursorLabel.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
             }
@@ -414,8 +369,6 @@ class EditorActivity : AppCompatActivity() {
             val labelWidth = binding.textCursorLabel.measuredWidth
             val containerWidth = binding.layoutTimelineContainer.width
 
-            // Calculate Centered Position: CursorX - (LabelWidth / 2)
-            // We clamp it so it doesn't fly off the left or right edges
             val maxTrans = (containerWidth - labelWidth).toFloat().coerceAtLeast(0f)
             val tooltipX = (translationX - (labelWidth / 2)).coerceIn(0f, maxTrans)
 
@@ -426,20 +379,14 @@ class EditorActivity : AppCompatActivity() {
     private fun startPlayback() {
         exoPlayer?.play()
         binding.buttonPlayPause.setImageResource(R.drawable.pause_24px)
-
-        // NEW: Show tooltip during playback
         binding.textCursorLabel.visibility = View.VISIBLE
-
         handler.post(updateCursorRunnable)
     }
 
     private fun pausePlayback() {
         exoPlayer?.pause()
         binding.buttonPlayPause.setImageResource(R.drawable.play_arrow_24px)
-
-        // NEW: Hide tooltip when paused (optional, keeps UI clean)
         binding.textCursorLabel.visibility = View.GONE
-
         handler.removeCallbacks(updateCursorRunnable)
     }
 
@@ -453,7 +400,6 @@ class EditorActivity : AppCompatActivity() {
         if (currentPos >= endTimeMs || currentPos < startTimeMs) {
             seekTo(startTimeMs)
             if (exoPlayer?.isPlaying == true) {
-                // Optional: You can choose to loop or pause here
                 pausePlayback()
             }
         }
@@ -472,8 +418,6 @@ class EditorActivity : AppCompatActivity() {
         pausePlayback()
         Toast.makeText(this, "Exporting...", Toast.LENGTH_SHORT).show()
 
-        // 1. NEW: Copy the remote file to a local cache file we fully own
-        // This solves the 'avc: denied dmabuf' error by giving us a clean file descriptor
         val localInputFile = copyUriToCache(this, sourceUri)
         if (localInputFile == null) {
             Toast.makeText(this, "Failed to load video file", Toast.LENGTH_SHORT).show()
@@ -482,19 +426,16 @@ class EditorActivity : AppCompatActivity() {
 
         val tempFile = File(externalCacheDir ?: cacheDir, "temp_trim_${System.currentTimeMillis()}.mp4")
 
-        // 2. Configure Clipping
         val clippingConfiguration = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(startTimeMs)
             .setEndPositionMs(endTimeMs)
             .build()
 
-        // 3. Build MediaItem using the LOCAL FILE, not the original URI
         val mediaItem = MediaItem.Builder()
-            .setUri(localInputFile.toURI().toString()) // Use local path
+            .setUri(localInputFile.toURI().toString())
             .setClippingConfiguration(clippingConfiguration)
             .build()
 
-        // 4. Force Transmuxing (Passthrough)
         val editedMediaItem = EditedMediaItem.Builder(mediaItem).build()
         val sequence = EditedMediaItemSequence.Builder(editedMediaItem).build()
 
@@ -507,12 +448,12 @@ class EditorActivity : AppCompatActivity() {
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     saveToGallery(tempFile)
-                    localInputFile.delete() // Clean up the input copy
+                    localInputFile.delete()
                 }
 
                 override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                     exportException.printStackTrace()
-                    localInputFile.delete() // Clean up on error
+                    localInputFile.delete()
                     Toast.makeText(this@EditorActivity, "Export Failed: ${exportException.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             })
@@ -545,8 +486,6 @@ class EditorActivity : AppCompatActivity() {
             val timestamp = System.currentTimeMillis() / 1000
             val isVideo = mediaFile?.isVideo == true
 
-            // 1. Determine Extension and Mime Type
-            // Note: Transformer outputs MP4 container. For audio, we use .m4a
             val extension = if (isVideo) "mp4" else "m4a"
             val mimeType = if (isVideo) "video/mp4" else "audio/mp4"
             val directory = if (isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_MUSIC
@@ -554,17 +493,15 @@ class EditorActivity : AppCompatActivity() {
             val newTitle = "${originalTitle}_trim_$timestamp"
 
             val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, "$newTitle.$extension") // <--- Fixed Extension
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$newTitle.$extension")
                 put(MediaStore.MediaColumns.DATE_ADDED, timestamp)
                 put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, directory) // <--- Fixed Directory
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, directory)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
             }
-
-            // ... (Rest of your existing insert/copy logic remains the same) ...
 
             val collection = if (isVideo) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -600,11 +537,81 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-
-        override fun onDestroy() {
+    override fun onDestroy() {
         super.onDestroy()
         exoPlayer?.release()
         handler.removeCallbacks(updateCursorRunnable)
+    }
+
+    // --- NEW: Helper method to construct MediaFile from Uri ---
+    private fun loadMediaFileFromUri(uri: Uri): MediaFile? {
+        var title = "Unknown"
+        var duration = 0L
+        var size = 0L
+        var isVideo = false
+        var resolution: String? = null
+        var artist: String? = null
+
+        try {
+            // 1. Try to get filename from ContentResolver
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIndex = it.getColumnIndex(OpenableColumns.SIZE)
+                    if (nameIndex != -1) title = it.getString(nameIndex)
+                    if (sizeIndex != -1) size = it.getLong(sizeIndex)
+                }
+            }
+            // Remove extension from title for cleaner UI
+            title = title.substringBeforeLast(".")
+
+            // 2. Use MediaMetadataRetriever for critical data (Duration, Type)
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(this, uri)
+                val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                duration = durationStr?.toLongOrNull() ?: 0L
+
+                val hasVideoStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO)
+                isVideo = hasVideoStr != null
+
+                if (isVideo) {
+                    val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    if (w != null && h != null) resolution = "${w}x${h}"
+                } else {
+                    artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                }
+
+                // If retriever didn't confirm video but mime type in intent said video, fallback to checking Mime
+                if (!isVideo) {
+                    val mime = contentResolver.getType(uri) ?: ""
+                    if (mime.startsWith("video/")) isVideo = true
+                }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                retriever.release()
+            }
+
+            return MediaFile(
+                id = System.currentTimeMillis(), // Fake ID
+                uri = uri,
+                title = title,
+                duration = duration,
+                size = size,
+                resolution = resolution,
+                artist = artist,
+                dateAdded = System.currentTimeMillis() / 1000,
+                isVideo = isVideo
+            )
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
     }
 
     class ThumbnailAdapter(private val context: Context, private val file: MediaFile, private val count: Int) : RecyclerView.Adapter<ThumbnailAdapter.ThumbViewHolder>() {
@@ -613,7 +620,6 @@ class EditorActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ThumbViewHolder {
             val displayMetrics = context.resources.displayMetrics
-            // Width calculation: (Screen Width - 32dp margins) / count
             val marginPx = (32 * displayMetrics.density).toInt()
             val width = (displayMetrics.widthPixels - marginPx) / count
 
