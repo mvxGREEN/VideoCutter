@@ -7,88 +7,54 @@
     android:background="#000000"
     android:fitsSystemWindows="true">
 
+    <ImageButton
+        android:id="@+id/button_cancel_action"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:elevation="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/close_24px"
+        app:tint="#808080"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageButton
+        android:id="@+id/button_save_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:elevation="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/check_24px"
+        app:tint="@android:color/white"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <androidx.media3.ui.PlayerView
         android:id="@+id/player_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@android:color/black"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@+id/layout_middle_controls"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/layout_time_labels"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:resize_mode="fit"
         app:show_buffering="when_playing"
         app:use_controller="false" />
 
-    <LinearLayout
-        android:id="@+id/layout_middle_controls"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:paddingBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/layout_action_tabs"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <ImageButton
-            android:id="@+id/button_prev_frame"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/skip_previous_24px"
-            app:tint="@android:color/white"
-            android:contentDescription="Previous" />
-
-        <ImageButton
-            android:id="@+id/button_play_pause"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="24dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/play_arrow_24px"
-            app:tint="@android:color/white"
-            android:contentDescription="Play" />
-    </LinearLayout>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/layout_action_tabs"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="16dp"
-        app:layout_constraintBottom_toTopOf="@+id/layout_time_labels">
-
-        <ImageButton
-            android:id="@+id/button_cancel_action"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/close_24px"
-            app:tint="#808080"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
-
-        <ImageButton
-            android:id="@+id/button_save_check"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/check_24px"
-            app:tint="@android:color/white"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"/>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layout_time_labels"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
         android:paddingBottom="4dp"
-        app:layout_constraintBottom_toTopOf="@+id/layout_timeline_container">
+        app:layout_constraintBottom_toTopOf="@+id/layout_timeline_container"
+        app:layout_constraintEnd_toEndOf="@+id/layout_timeline_container"
+        app:layout_constraintStart_toStartOf="@+id/layout_timeline_container">
 
         <TextView
             android:id="@+id/text_start_time"
@@ -96,10 +62,10 @@
             android:layout_height="wrap_content"
             android:text="@string/zeros_underlined"
             android:textColor="@color/colorPrimary"
-            android:textStyle="bold"
             android:textSize="14sp"
+            android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/text_total_duration"
@@ -108,9 +74,9 @@
             android:text="Total 0:00.0"
             android:textColor="#808080"
             android:textSize="13sp"
-            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
             android:id="@+id/text_end_time"
@@ -118,27 +84,61 @@
             android:layout_height="wrap_content"
             android:text="@string/zeros_underlined"
             android:textColor="@color/colorPrimary"
-            android:textStyle="bold"
             android:textSize="14sp"
+            android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            app:layout_constraintTop_toTopOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_middle_controls"
+        android:layout_width="wrap_content"
+        android:layout_height="64dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <ImageButton
+            android:id="@+id/button_prev_frame"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Previous"
+            android:src="@drawable/skip_previous_24px"
+            app:tint="@android:color/white" />
+
+        <ImageButton
+            android:id="@+id/button_play_pause"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="16dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Play"
+            android:src="@drawable/play_arrow_24px"
+            app:tint="@android:color/white" />
+    </LinearLayout>
 
     <FrameLayout
         android:id="@+id/layout_timeline_container"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="64dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
         android:clipChildren="false"
         android:clipToPadding="false"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/layout_middle_controls">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_thumbnails"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#222222"/>
+            android:background="#222222" />
 
         <View
             android:id="@+id/view_selection_border"
@@ -153,22 +153,22 @@
             android:layout_gravity="start"
             android:layout_marginStart="-25dp"
             android:layout_marginEnd="-25dp"
-            app:thumbRadius="16dp"
+            android:padding="0dp"
+            app:haloColor="@color/colorPrimaryDark"
             app:haloRadius="16dp"
+            app:labelBehavior="gone"
             app:thumbColor="@color/shadowInvisible"
+            app:thumbRadius="16dp"
             app:trackColorActive="@android:color/transparent"
             app:trackColorInactive="#80000000"
-            app:haloColor="@color/colorPrimaryDark"
-            android:padding="0dp"
-            app:trackHeight="64dp"
-            app:labelBehavior="gone"/>
+            app:trackHeight="64dp" />
 
         <View
             android:id="@+id/view_cursor"
             android:layout_width="3dp"
             android:layout_height="match_parent"
-            android:background="@color/gmaRedWhite"
             android:layout_gravity="start"
+            android:background="@color/gmaRedWhite"
             android:translationX="0dp" />
 
         <TextView
@@ -202,71 +202,79 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#AA000000"
-        android:visibility="gone"
         android:clickable="true"
-        android:focusable="true">
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:background="#1E1E1E"
+            android:minWidth="300dp"
+            android:orientation="vertical"
             android:padding="24dp"
-            app:layout_constraintBottom_toBottomOf="parent">
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <TextView
                 android:id="@+id/text_picker_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="32dp"
                 android:text="Set end time"
                 android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="32dp"/>
+                android:textSize="16sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
                 android:gravity="center"
-                android:layout_marginBottom="32dp">
+                android:layout_marginBottom="32dp"
+                android:orientation="horizontal">
 
                 <NumberPicker
                     android:id="@+id/picker_min"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:theme="@style/ThemeOverlay.AppCompat.Dark"
-                    android:background="@android:color/transparent" />
+                    android:background="@android:color/transparent"
+                    android:theme="@style/ThemeOverlay.AppCompat.Dark" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:paddingHorizontal="8dp"
                     android:text=":"
                     android:textColor="#FFFFFF"
-                    android:textSize="24sp"
-                    android:paddingHorizontal="8dp"/>
+                    android:textSize="24sp" />
 
                 <NumberPicker
                     android:id="@+id/picker_sec"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:theme="@style/ThemeOverlay.AppCompat.Dark"
-                    android:background="@android:color/transparent" />
+                    android:background="@android:color/transparent"
+                    android:theme="@style/ThemeOverlay.AppCompat.Dark" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:paddingHorizontal="8dp"
                     android:text="."
                     android:textColor="#FFFFFF"
-                    android:textSize="24sp"
-                    android:paddingHorizontal="8dp"/>
+                    android:textSize="24sp" />
 
                 <NumberPicker
                     android:id="@+id/picker_ms"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:theme="@style/ThemeOverlay.AppCompat.Dark"
-                    android:background="@android:color/transparent" />
+                    android:background="@android:color/transparent"
+                    android:theme="@style/ThemeOverlay.AppCompat.Dark" />
             </LinearLayout>
 
             <LinearLayout
@@ -274,25 +282,27 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:weightSum="2">
+
                 <Button
                     android:id="@+id/button_picker_cancel"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
                     android:layout_weight="1"
-                    android:text="Cancel"
                     android:backgroundTint="#00000000"
-                    android:textColor="#AAA"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_marginEnd="8dp"/>
+                    android:text="Cancel"
+                    android:textColor="#AAA" />
+
                 <Button
                     android:id="@+id/button_picker_ok"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:text="OK"
                     android:backgroundTint="#FF5722"
-                    android:textColor="@android:color/white"
-                    android:layout_marginStart="8dp"/>
+                    android:text="OK"
+                    android:textColor="@android:color/white" />
             </LinearLayout>
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>

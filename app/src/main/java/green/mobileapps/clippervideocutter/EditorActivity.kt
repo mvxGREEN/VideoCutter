@@ -39,6 +39,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 import kotlin.math.abs
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @UnstableApi
 class EditorActivity : AppCompatActivity() {
@@ -458,51 +462,73 @@ class EditorActivity : AppCompatActivity() {
 
     private fun saveMedia() {
         val sourceUri = mediaFile?.uri ?: return
-        pausePlayback()
-        Toast.makeText(this, "Exporting...", Toast.LENGTH_SHORT).show()
 
-        val localInputFile = copyUriToCache(this, sourceUri)
-        if (localInputFile == null) {
-            Toast.makeText(this, "Failed to load video file", Toast.LENGTH_SHORT).show()
-            return
+        // --- FIX 1: RELEASE PLAYER RESOURCES ---
+        // Pause isn't enough. We must release the player to free up the
+        // decoder and RAM for the heavy Transformer operation.
+        exoPlayer?.release()
+        exoPlayer = null
+
+        // Show the blocking overlay
+        binding.layoutLoadingOverlay.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            // Move file copying to background thread (from previous fix)
+            val localInputFile = withContext(Dispatchers.IO) {
+                copyUriToCache(this@EditorActivity, sourceUri)
+            }
+
+            if (localInputFile == null) {
+                binding.layoutLoadingOverlay.visibility = View.GONE
+                Toast.makeText(this@EditorActivity, "Failed to load media file", Toast.LENGTH_SHORT).show()
+                // If we failed, we might want to re-init the player here so the user isn't staring at a black screen,
+                // but usually they will just exit or try again.
+                return@launch
+            }
+
+            val tempFile = File(externalCacheDir ?: cacheDir, "temp_trim_${System.currentTimeMillis()}.mp4")
+
+            val clippingConfiguration = MediaItem.ClippingConfiguration.Builder()
+                .setStartPositionMs(startTimeMs)
+                .setEndPositionMs(endTimeMs)
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setUri(localInputFile.toURI().toString())
+                .setClippingConfiguration(clippingConfiguration)
+                .build()
+
+            val editedMediaItem = EditedMediaItem.Builder(mediaItem).build()
+            val sequence = EditedMediaItemSequence.Builder(editedMediaItem).build()
+
+            val composition = Composition.Builder(listOf(sequence))
+                //.setTransmuxVideo(true) // Try to pass-through without encoding
+                .setTransmuxAudio(true)
+                .build()
+
+            transformer = Transformer.Builder(this@EditorActivity)
+                .setVideoMimeType(androidx.media3.common.MimeTypes.VIDEO_H264)
+                .addListener(object : Transformer.Listener {
+                    override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                        saveToGallery(tempFile)
+                        localInputFile.delete()
+                        // Activity finishes here, so no need to re-init player
+                    }
+
+                    override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
+                        binding.layoutLoadingOverlay.visibility = View.GONE
+                        exportException.printStackTrace()
+                        localInputFile.delete()
+                        Toast.makeText(this@EditorActivity, "Export Failed: ${exportException.localizedMessage}", Toast.LENGTH_LONG).show()
+
+                        // Optional: Re-initialize player here if you want the user to be able to preview again
+                        // setupPlayer()
+                    }
+                })
+                .build()
+
+            transformer?.start(composition, tempFile.absolutePath)
         }
-
-        val tempFile = File(externalCacheDir ?: cacheDir, "temp_trim_${System.currentTimeMillis()}.mp4")
-
-        val clippingConfiguration = MediaItem.ClippingConfiguration.Builder()
-            .setStartPositionMs(startTimeMs)
-            .setEndPositionMs(endTimeMs)
-            .build()
-
-        val mediaItem = MediaItem.Builder()
-            .setUri(localInputFile.toURI().toString())
-            .setClippingConfiguration(clippingConfiguration)
-            .build()
-
-        val editedMediaItem = EditedMediaItem.Builder(mediaItem).build()
-        val sequence = EditedMediaItemSequence.Builder(editedMediaItem).build()
-
-        val composition = Composition.Builder(listOf(sequence))
-            .setTransmuxVideo(true)
-            .setTransmuxAudio(true)
-            .build()
-
-        transformer = Transformer.Builder(this)
-            .addListener(object : Transformer.Listener {
-                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                    saveToGallery(tempFile)
-                    localInputFile.delete()
-                }
-
-                override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                    exportException.printStackTrace()
-                    localInputFile.delete()
-                    Toast.makeText(this@EditorActivity, "Export Failed: ${exportException.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
-            })
-            .build()
-
-        transformer?.start(composition, tempFile.absolutePath)
     }
 
     private fun copyUriToCache(context: Context, sourceUri: android.net.Uri): File? {
