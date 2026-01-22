@@ -37,7 +37,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:tint="@android:color/white"
+                app:tint="@color/white"
                 android:visibility="gone"
                 android:clickable="true"
                 android:focusable="true"/>
@@ -80,7 +80,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/button_sort_direction"
-                app:tint="@android:color/white"
+                app:tint="@color/white"
                 android:clickable="true"
                 android:focusable="true"/>
 
@@ -96,7 +96,7 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:tint="@android:color/white"
+                app:tint="@color/white"
                 android:clickable="true"
                 android:focusable="true"/>
 

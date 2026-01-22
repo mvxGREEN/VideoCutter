@@ -13,6 +13,8 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.text.SpannableString
+import android.text.style.UnderlineSpan
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -123,8 +125,21 @@ class EditorActivity : AppCompatActivity() {
         binding.rangeSlider.valueTo = durationMs.toFloat().coerceAtLeast(1f)
         binding.rangeSlider.values = listOf(0f, durationMs.toFloat().coerceAtLeast(1f))
 
-        binding.textStartTime.text = formatTimeDecimal(0L)
-        binding.textEndTime.text = formatTimeDecimal(durationMs)
+        // underline start and end times
+        val startTimeSpan = SpannableString(formatTimeDecimal(0L))
+        val endTimeSpan = SpannableString(formatTimeDecimal(durationMs))
+        startTimeSpan.setSpan(UnderlineSpan(),
+            0,
+            startTimeSpan.length,
+            0)
+
+        endTimeSpan.setSpan(UnderlineSpan(),
+            0,
+            endTimeSpan.length,
+            0)
+
+        binding.textStartTime.text = startTimeSpan
+        binding.textEndTime.text = endTimeSpan
 
         if (mediaFile?.isVideo == true) {
             binding.recyclerThumbnails.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -145,8 +160,22 @@ class EditorActivity : AppCompatActivity() {
                 seekTo(endTimeMs)
             }
 
-            binding.textStartTime.text = formatTimeDecimal(startTimeMs)
-            binding.textEndTime.text = formatTimeDecimal(endTimeMs)
+            // underline start and end times
+            val startTimeSpan = SpannableString(formatTimeDecimal(startTimeMs))
+            val endTimeSpan = SpannableString(formatTimeDecimal(endTimeMs))
+            startTimeSpan.setSpan(UnderlineSpan(),
+                0,
+                startTimeSpan.length,
+                0)
+
+            endTimeSpan.setSpan(UnderlineSpan(),
+                0,
+                endTimeSpan.length,
+                0)
+
+            binding.textStartTime.text = startTimeSpan
+            binding.textEndTime.text = endTimeSpan
+
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
 
             updateSelectionBorder()
@@ -324,8 +353,22 @@ class EditorActivity : AppCompatActivity() {
                 }
             }
 
-            binding.textStartTime.text = formatTimeDecimal(startTimeMs)
-            binding.textEndTime.text = formatTimeDecimal(endTimeMs)
+            // underline start and end times
+            val startTimeSpan = SpannableString(formatTimeDecimal(startTimeMs))
+            val endTimeSpan = SpannableString(formatTimeDecimal(endTimeMs))
+            startTimeSpan.setSpan(UnderlineSpan(),
+                0,
+                startTimeSpan.length,
+                0)
+
+            endTimeSpan.setSpan(UnderlineSpan(),
+                0,
+                endTimeSpan.length,
+                0)
+
+            binding.textStartTime.text = startTimeSpan
+            binding.textEndTime.text = endTimeSpan
+
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
             seekTo(if(isPickingStartTime) startTimeMs else endTimeMs)
 
@@ -386,7 +429,7 @@ class EditorActivity : AppCompatActivity() {
     private fun pausePlayback() {
         exoPlayer?.pause()
         binding.buttonPlayPause.setImageResource(R.drawable.play_arrow_24px)
-        binding.textCursorLabel.visibility = View.GONE
+        //binding.textCursorLabel.visibility = View.GONE
         handler.removeCallbacks(updateCursorRunnable)
     }
 

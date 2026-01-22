@@ -94,10 +94,10 @@
             android:id="@+id/text_start_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0:00.0"
+            android:text="@string/zeros_underlined"
             android:textColor="@color/colorPrimary"
             android:textStyle="bold"
-            android:textSize="13sp"
+            android:textSize="14sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 
@@ -116,10 +116,10 @@
             android:id="@+id/text_end_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="0:00.0"
+            android:text="@string/zeros_underlined"
             android:textColor="@color/colorPrimary"
             android:textStyle="bold"
-            android:textSize="13sp"
+            android:textSize="14sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
@@ -155,7 +155,7 @@
             android:layout_marginEnd="-25dp"
             app:thumbRadius="16dp"
             app:haloRadius="16dp"
-            app:thumbColor="@color/colorPrimary"
+            app:thumbColor="@color/shadowInvisible"
             app:trackColorActive="@android:color/transparent"
             app:trackColorInactive="#80000000"
             app:haloColor="@color/colorPrimaryDark"
@@ -183,7 +183,7 @@
             android:text="0:00.0"
             android:textColor="@android:color/white"
             android:textSize="12sp"
-            android:visibility="gone"
+            android:visibility="visible"
             tools:visibility="visible" />
 
         <View
