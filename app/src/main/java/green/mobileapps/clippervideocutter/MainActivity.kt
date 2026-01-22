@@ -50,7 +50,7 @@ import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 // --- SORTING DEFINITIONS ---
-enum class SortBy { DATE, TITLE, DURATION }
+enum class SortBy { DATE, TITLE, DURATION, SIZE }
 data class SortState(val by: SortBy, val ascending: Boolean)
 // ---------------------------
 
@@ -271,6 +271,7 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
             SortBy.TITLE -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
             SortBy.DURATION -> compareBy { it.duration }
             SortBy.DATE -> compareBy { it.dateAdded }
+            SortBy.SIZE -> compareBy { it.size }
         }
         val sortedList = list.sortedWith(comparator)
         return if (state.ascending) sortedList else sortedList.reversed()
@@ -526,21 +527,32 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
             popup.menu.apply {
                 add(0, SortBy.DATE.ordinal, 0, "Date Added")
                 add(0, SortBy.TITLE.ordinal, 1, "Title")
-                add(0, SortBy.DURATION.ordinal, 2, "Duration")
+                add(0, SortBy.DURATION.ordinal, 2, "Length")
+                add(0, SortBy.SIZE.ordinal, 3, "Size")
             }
             popup.setOnMenuItemClickListener { item: MenuItem ->
                 val sortCriterion = SortBy.entries.find { it.ordinal == item.itemId }
                 if (sortCriterion != null) {
                     val currentSortState = viewModel.sortState.value!!
-                    val newAscending = if (sortCriterion == currentSortState.by) !currentSortState.ascending else currentSortState.ascending
+
+                    val newAscending = if (sortCriterion == currentSortState.by) {
+                        !currentSortState.ascending // Toggle if clicking the same option
+                    } else {
+                        false // <--- FIX: Default to Descending (false) for new options
+                    }
+
                     viewModel.setSortState(SortState(sortCriterion, newAscending))
                     true
                 } else false
             }
             popup.show()
         }
+
         viewModel.sortState.observe(this) { state ->
-            sortDirectionButton.setImageResource(if (state.ascending) R.drawable.ascending_24px else R.drawable.descending_24px)
+            // Update the icon to reflect the current state
+            sortDirectionButton.setImageResource(
+                if (state.ascending) R.drawable.ascending_24px else R.drawable.descending_24px
+            )
         }
     }
 
