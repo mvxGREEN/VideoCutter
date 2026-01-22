@@ -303,6 +303,7 @@ class EditorActivity : AppCompatActivity() {
         binding.pickerMs.maxValue = 9
         binding.pickerMs.wrapSelectorWheel = false
 
+        // Helper to update limits based on max duration
         fun updateLimits() {
             val currentMin = binding.pickerMin.value
 
@@ -326,10 +327,35 @@ class EditorActivity : AppCompatActivity() {
             }
         }
 
-        binding.pickerMin.setOnValueChangedListener { _, _, _ -> updateLimits() }
-        binding.pickerSec.setOnValueChangedListener { _, _, _ -> updateLimits() }
+        // --- NEW: Helper to seek player while scrolling ---
+        fun previewFromPicker() {
+            val min = binding.pickerMin.value.toLong()
+            val sec = binding.pickerSec.value.toLong()
+            val ms100 = binding.pickerMs.value.toLong()
 
-        binding.buttonPickerCancel.setOnClickListener { binding.layoutTimePicker.visibility = View.GONE }
+            val newTimeMs = (min * 60000) + (sec * 1000) + (ms100 * 100)
+            val safeTimeMs = newTimeMs.coerceAtMost(durationMs)
+
+            // Seek immediately to preview, but do NOT save to variables yet
+            seekTo(safeTimeMs)
+        }
+
+        // --- UPDATED LISTENERS ---
+        // Create one listener for all 3 pickers
+        val changeListener = android.widget.NumberPicker.OnValueChangeListener { _, _, _ ->
+            updateLimits()
+            previewFromPicker() // Trigger seek whenever a value changes
+        }
+
+        binding.pickerMin.setOnValueChangedListener(changeListener)
+        binding.pickerSec.setOnValueChangedListener(changeListener)
+        binding.pickerMs.setOnValueChangedListener(changeListener)
+
+        binding.buttonPickerCancel.setOnClickListener {
+            binding.layoutTimePicker.visibility = View.GONE
+            // Revert preview to the actual saved time if they cancel
+            seekTo(if (isPickingStartTime) startTimeMs else endTimeMs)
+        }
 
         binding.buttonPickerOk.setOnClickListener {
             val min = binding.pickerMin.value.toLong()
@@ -345,6 +371,7 @@ class EditorActivity : AppCompatActivity() {
                     binding.rangeSlider.setValues(startTimeMs.toFloat(), endTimeMs.toFloat())
                 } else {
                     Toast.makeText(this, "Start time must be before end time", Toast.LENGTH_SHORT).show()
+                    seekTo(startTimeMs) // Revert preview to valid start time
                     return@setOnClickListener
                 }
             } else {
@@ -353,27 +380,22 @@ class EditorActivity : AppCompatActivity() {
                     binding.rangeSlider.setValues(startTimeMs.toFloat(), endTimeMs.toFloat())
                 } else {
                     Toast.makeText(this, "End time must be after start time", Toast.LENGTH_SHORT).show()
+                    seekTo(endTimeMs) // Revert preview to valid end time
                     return@setOnClickListener
                 }
             }
 
-            // underline start and end times
+            // Update UI text
             val startTimeSpan = SpannableString(formatTimeDecimal(startTimeMs))
             val endTimeSpan = SpannableString(formatTimeDecimal(endTimeMs))
-            startTimeSpan.setSpan(UnderlineSpan(),
-                0,
-                startTimeSpan.length,
-                0)
-
-            endTimeSpan.setSpan(UnderlineSpan(),
-                0,
-                endTimeSpan.length,
-                0)
+            startTimeSpan.setSpan(UnderlineSpan(), 0, startTimeSpan.length, 0)
+            endTimeSpan.setSpan(UnderlineSpan(), 0, endTimeSpan.length, 0)
 
             binding.textStartTime.text = startTimeSpan
             binding.textEndTime.text = endTimeSpan
-
             binding.textTotalDuration.text = "Total ${formatTimeDecimal(endTimeMs - startTimeMs)}"
+
+            // Ensure player is at the final confirmed time
             seekTo(if(isPickingStartTime) startTimeMs else endTimeMs)
 
             binding.layoutTimePicker.visibility = View.GONE
