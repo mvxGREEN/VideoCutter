@@ -403,6 +403,8 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun showTimePicker(isStart: Boolean) {
+        exoPlayer?.pause()
+
         isPickingStartTime = isStart
         binding.layoutTimePicker.visibility = View.VISIBLE
         binding.textPickerTitle.text = if (isStart) "Set start time" else "Set end time"
