@@ -157,19 +157,19 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
         if (_isLoading.value == true) return
 
         _isLoading.postValue(true)
-        _statusMessage.postValue("Scanning for media files...")
+        _statusMessage.postValue("Scanning for video files...") // Updated text
 
         scope.launch {
             val combinedList = mutableListOf<MediaFile>()
             combinedList.addAll(loadVideos(context))
-            combinedList.addAll(loadAudio(context))
+            // REMOVED: combinedList.addAll(loadAudio(context))
 
             PlaylistRepository.setFiles(combinedList)
 
             if (combinedList.isEmpty()) {
-                _statusMessage.postValue("No media found.")
+                _statusMessage.postValue("No videos found.") // Updated text
             } else {
-                _statusMessage.postValue("Loaded ${combinedList.size} files.")
+                _statusMessage.postValue("Loaded ${combinedList.size} videos.") // Updated text
             }
             _isLoading.postValue(false)
         }
@@ -405,9 +405,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     private lateinit var sortDirectionButton: ImageButton
     private lateinit var backButton: ImageButton
 
-    // PERMISSIONS: Add Audio for Android 13+
     private val mediaPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
+        arrayOf(Manifest.permission.READ_MEDIA_VIDEO) // Removed READ_MEDIA_AUDIO
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
