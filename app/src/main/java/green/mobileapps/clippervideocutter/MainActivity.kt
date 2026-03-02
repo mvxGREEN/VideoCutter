@@ -7,6 +7,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -14,6 +15,7 @@ import android.os.Parcel
 import android.os.Parcelable
 import android.provider.MediaStore
 import android.text.format.Formatter
+import android.util.LruCache
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
@@ -35,8 +37,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import green.mobileapps.clippervideocutter.databinding.ItemMediaFileBinding
 import green.mobileapps.clippervideocutter.databinding.MainActivityBinding
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -57,11 +62,11 @@ data class SortState(val by: SortBy, val ascending: Boolean)
 // --- Interface for Adapter/Activity communication ---
 interface MusicEditListener {
     fun startEditing(position: Int)
-    fun saveEditAndExit(mediaFile: MediaFile, newTitle: String, newArtist: String)
+    fun saveEditAndExit(videoFile: VideoFile, newTitle: String, newArtist: String)
 }
 
 // --- DATA MODEL ---
-data class MediaFile(
+data class VideoFile(
     val id: Long,
     val uri: Uri,
     val title: String,
@@ -98,41 +103,47 @@ data class MediaFile(
 
     override fun describeContents(): Int = 0
 
-    companion object CREATOR : Parcelable.Creator<MediaFile> {
-        override fun createFromParcel(parcel: Parcel): MediaFile = MediaFile(parcel)
-        override fun newArray(size: Int): Array<MediaFile?> = arrayOfNulls(size)
+    companion object CREATOR : Parcelable.Creator<VideoFile> {
+        override fun createFromParcel(parcel: Parcel): VideoFile = VideoFile(parcel)
+        override fun newArray(size: Int): Array<VideoFile?> = arrayOfNulls(size)
     }
 }
 
 // 1. Repository
 object PlaylistRepository {
-    private val _mediaFiles = MutableLiveData<List<MediaFile>>(emptyList())
-    val mediaFiles: LiveData<List<MediaFile>> = _mediaFiles
+    private val _videoFiles = MutableLiveData<List<VideoFile>>(emptyList())
+    val videoFiles: LiveData<List<VideoFile>> = _videoFiles
 
-    fun setFiles(files: List<MediaFile>) {
-        _mediaFiles.postValue(files)
-    }
-
-    fun updateFile(updatedFile: MediaFile) {
-        val currentList = _mediaFiles.value.orEmpty().toMutableList()
-        val index = currentList.indexOfFirst { it.id == updatedFile.id }
-        if (index != -1) {
-            currentList[index] = updatedFile
-            _mediaFiles.postValue(currentList)
+    val thumbnailCache = object : LruCache<Long, Bitmap>(4 * 1024 * 1024) { // Increased to 10MB
+        override fun sizeOf(key: Long, value: Bitmap): Int {
+            return value.byteCount
         }
     }
 
-    fun getFullPlaylist(): List<MediaFile> = _mediaFiles.value ?: emptyList()
+    fun setFiles(files: List<VideoFile>) {
+        _videoFiles.postValue(files)
+    }
+
+    fun updateFile(updatedFile: VideoFile) {
+        val currentList = _videoFiles.value.orEmpty().toMutableList()
+        val index = currentList.indexOfFirst { it.id == updatedFile.id }
+        if (index != -1) {
+            currentList[index] = updatedFile
+            _videoFiles.postValue(currentList)
+        }
+    }
+
+    fun getFullPlaylist(): List<VideoFile> = _videoFiles.value ?: emptyList()
 }
 
 
 // 2. ViewModel
 class MusicViewModel(application: android.app.Application) : AndroidViewModel(application) {
 
-    private val fullMediaList: LiveData<List<MediaFile>> = PlaylistRepository.mediaFiles
-    private var mediaListFull: List<MediaFile> = emptyList()
-    private val _filteredList = MutableLiveData<List<MediaFile>>(emptyList())
-    val filteredList: LiveData<List<MediaFile>> = _filteredList
+    private val fullMediaList: LiveData<List<VideoFile>> = PlaylistRepository.videoFiles
+    private var mediaListFull: List<VideoFile> = emptyList()
+    private val _filteredList = MutableLiveData<List<VideoFile>>(emptyList())
+    val filteredList: LiveData<List<VideoFile>> = _filteredList
 
     private val _statusMessage = MutableLiveData<String>()
     val statusMessage: LiveData<String> = _statusMessage
@@ -160,7 +171,7 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
         _statusMessage.postValue("Scanning for video files...") // Updated text
 
         scope.launch {
-            val combinedList = mutableListOf<MediaFile>()
+            val combinedList = mutableListOf<VideoFile>()
             combinedList.addAll(loadVideos(context))
             // REMOVED: combinedList.addAll(loadAudio(context))
 
@@ -175,8 +186,8 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
         }
     }
 
-    private fun loadVideos(context: Context): List<MediaFile> {
-        val files = mutableListOf<MediaFile>()
+    private fun loadVideos(context: Context): List<VideoFile> {
+        val files = mutableListOf<VideoFile>()
         val uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
@@ -199,15 +210,15 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
                     val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED))
                     val contentUri = ContentUris.withAppendedId(uri, id)
 
-                    files.add(MediaFile(id, contentUri, title, duration, size, resolution, null, dateAdded, true))
+                    files.add(VideoFile(id, contentUri, title, duration, size, resolution, null, dateAdded, true))
                 }
             }
         } catch (e: Exception) { e.printStackTrace() }
         return files
     }
 
-    private fun loadAudio(context: Context): List<MediaFile> {
-        val files = mutableListOf<MediaFile>()
+    private fun loadAudio(context: Context): List<VideoFile> {
+        val files = mutableListOf<VideoFile>()
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
@@ -230,7 +241,7 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
                     val dateAdded = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED))
                     val contentUri = ContentUris.withAppendedId(uri, id)
 
-                    files.add(MediaFile(id, contentUri, title, duration, size, null, artist, dateAdded, false))
+                    files.add(VideoFile(id, contentUri, title, duration, size, null, artist, dateAdded, false))
                 }
             }
         } catch (e: Exception) { e.printStackTrace() }
@@ -259,15 +270,15 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
         applySortAndFilter()
     }
 
-    private fun applyFilter(list: List<MediaFile>, query: String): List<MediaFile> {
+    private fun applyFilter(list: List<VideoFile>, query: String): List<VideoFile> {
         val lowerCaseQuery = query.lowercase()
         return if (lowerCaseQuery.isBlank()) list else list.filter {
             it.title.lowercase().contains(lowerCaseQuery) || (it.artist?.lowercase()?.contains(lowerCaseQuery) == true)
         }
     }
 
-    private fun applySort(list: List<MediaFile>, state: SortState): List<MediaFile> {
-        val comparator: Comparator<MediaFile> = when (state.by) {
+    private fun applySort(list: List<VideoFile>, state: SortState): List<VideoFile> {
+        val comparator: Comparator<VideoFile> = when (state.by) {
             SortBy.TITLE -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
             SortBy.DURATION -> compareBy { it.duration }
             SortBy.DATE -> compareBy { it.dateAdded }
@@ -286,7 +297,7 @@ class MusicViewModel(application: android.app.Application) : AndroidViewModel(ap
 // 3. Adapter
 class MusicAdapter(
     private val activity: MainActivity,
-    private var mediaList: List<MediaFile>,
+    private var mediaList: List<VideoFile>,
     private val editListener: MusicEditListener
 ) : RecyclerView.Adapter<MusicAdapter.MusicViewHolder>() {
 
@@ -300,12 +311,14 @@ class MusicAdapter(
     }
 
     fun getEditingPosition(): Int = editingPosition
-    fun getCurrentList(): List<MediaFile> = mediaList
+    fun getCurrentList(): List<VideoFile> = mediaList
 
     inner class MusicViewHolder(private val binding: ItemMediaFileBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(file: MediaFile, index: Int) {
+        var job: Job? = null
+
+        fun bind(file: VideoFile, index: Int) {
             val isEditing = adapterPosition == editingPosition
 
             if (index % 2 == 0) {
@@ -314,43 +327,57 @@ class MusicAdapter(
                 binding.itemCard.setCardBackgroundColor(ContextCompat.getColor(binding.itemCard.context, R.color.white))
             }
 
-            com.bumptech.glide.Glide.with(itemView.context)
-                .load(file.uri)
-                .placeholder(if (file.isVideo) android.R.drawable.ic_menu_gallery else R.drawable.musi_v2_grey)
-                .centerCrop()
-                .into(binding.imageAlbumArt)
+            // --- IMAGE LOADING ---
+            job?.cancel()
 
-            // --- Updated Layout Binding ---
-            // 1. Title
+            // FIX: Access Cache from Singleton Repository
+            val cachedBitmap = PlaylistRepository.thumbnailCache.get(file.id)
+            binding.imageAlbumArt.setImageDrawable(null)
+
+            if (cachedBitmap != null) {
+                loadBitmapIntoView(cachedBitmap)
+            } else {
+                binding.imageAlbumArt.setImageResource(R.drawable.vide_shadow)
+
+                job = (activity as? androidx.lifecycle.LifecycleOwner)?.lifecycleScope?.launch(Dispatchers.IO) {
+                    val bitmap = getVideoThumbnailSafe(itemView.context, file.uri)
+
+                    if (bitmap != null) {
+                        // FIX: Put into Singleton Repository
+                        PlaylistRepository.thumbnailCache.put(file.id, bitmap)
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        if (isActive) {
+                            if (bitmap != null) {
+                                loadBitmapIntoView(bitmap)
+                            } else {
+                                binding.imageAlbumArt.setImageResource(R.drawable.vide_shadow)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- Text and Click Listeners ---
             binding.textTitle.text = file.title
-
-            // 2. Duration (Middle Row)
             binding.textDuration.text = formatDuration(file.duration)
-
-            // 3. Resolution | Size (Bottom Row)
-            val res = file.resolution ?: "Audio"
+            val res = file.resolution ?: "Video"
             val sizeStr = Formatter.formatFileSize(itemView.context, file.size)
             binding.textDetails.text = "$res ✦ $sizeStr"
-
-            // Setup Edit Text Values
             binding.editTextTitle.setText(file.title)
-            binding.editTextArtist.setText(if (file.isVideo) "" else file.artist)
 
-            // Visibility logic for Edit Mode
             if (isEditing) {
                 binding.textTitle.visibility = View.GONE
                 binding.textDuration.visibility = View.GONE
                 binding.textDetails.visibility = View.GONE
-
                 binding.editTextTitle.visibility = View.VISIBLE
-                // Only show second edit text if it's audio (for artist), or hide for video
-                binding.editTextArtist.visibility = if(file.isVideo) View.GONE else View.VISIBLE
+                binding.editTextArtist.visibility = View.GONE
                 binding.buttonSaveEdit.visibility = View.VISIBLE
             } else {
                 binding.textTitle.visibility = View.VISIBLE
                 binding.textDuration.visibility = View.VISIBLE
                 binding.textDetails.visibility = View.VISIBLE
-
                 binding.editTextTitle.visibility = View.GONE
                 binding.editTextArtist.visibility = View.GONE
                 binding.buttonSaveEdit.visibility = View.GONE
@@ -360,11 +387,25 @@ class MusicAdapter(
                 if (!isEditing) activity.startVideoEditor(file, adapterPosition)
             }
 
+            binding.root.setOnLongClickListener {
+                if (!isEditing) {
+                    editListener.startEditing(adapterPosition)
+                    true
+                } else false
+            }
+
             binding.buttonSaveEdit.setOnClickListener {
                 val newTitle = binding.editTextTitle.text.toString().trim()
                 val newArtist = binding.editTextArtist.text.toString().trim()
                 editListener.saveEditAndExit(file, newTitle, newArtist)
             }
+        }
+
+        private fun loadBitmapIntoView(bitmap: android.graphics.Bitmap) {
+            com.bumptech.glide.Glide.with(itemView.context)
+                .load(bitmap)
+                .transform(RoundedCorners(24))
+                .into(binding.imageAlbumArt)
         }
 
         private fun formatDuration(durationMs: Long): String {
@@ -386,9 +427,53 @@ class MusicAdapter(
 
     override fun getItemCount(): Int = mediaList.size
 
-    fun updateList(newList: List<MediaFile>) {
+    fun updateList(newList: List<VideoFile>) {
         mediaList = newList
         notifyDataSetChanged()
+    }
+
+    private fun getVideoThumbnailSafe(context: Context, uri: Uri): android.graphics.Bitmap? {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(context, uri)
+            val originalBitmap = retriever.getFrameAtTime()
+
+            if (originalBitmap != null) {
+                val width = originalBitmap.width
+                val height = originalBitmap.height
+                val targetSize = 144
+
+                val scale = Math.max(targetSize.toFloat() / width, targetSize.toFloat() / height)
+
+                val scaledWidth = (width * scale).toInt()
+                val scaledHeight = (height * scale).toInt()
+
+                val scaledBitmap = android.graphics.Bitmap.createScaledBitmap(originalBitmap, scaledWidth, scaledHeight, true)
+
+                val x = (scaledWidth - targetSize) / 2
+                val y = (scaledHeight - targetSize) / 2
+
+                val finalBitmap = if (x >= 0 && y >= 0 && x + targetSize <= scaledWidth && y + targetSize <= scaledHeight) {
+                    android.graphics.Bitmap.createBitmap(scaledBitmap, x, y, targetSize, targetSize)
+                } else {
+                    scaledBitmap
+                }
+
+                if (originalBitmap != finalBitmap) originalBitmap.recycle()
+                if (scaledBitmap != finalBitmap) scaledBitmap.recycle()
+
+                finalBitmap
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        } catch (e: OutOfMemoryError) {
+            System.gc()
+            null
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
     }
 }
 
@@ -444,7 +529,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         }
     }
 
-    private var pendingUpdateFile: MediaFile? = null
+    private var pendingUpdateFile: VideoFile? = null
     private var pendingUpdateTitle: String? = null
     private var pendingUpdateArtist: String? = null
 
@@ -643,7 +728,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
     }
 
     @OptIn(UnstableApi::class)
-    fun startVideoEditor(file: MediaFile, index: Int) {
+    fun startVideoEditor(file: VideoFile, index: Int) {
         if (musicAdapter.getEditingPosition() != RecyclerView.NO_POSITION) {
             exitEditingMode()
             return
@@ -674,15 +759,15 @@ class MainActivity : AppCompatActivity(), CoroutineScope, SearchView.OnQueryText
         }
     }
 
-    override fun saveEditAndExit(mediaFile: MediaFile, newTitle: String, newArtist: String) {
-        if (newTitle == mediaFile.title && newArtist == (mediaFile.artist ?: "")) {
+    override fun saveEditAndExit(videoFile: VideoFile, newTitle: String, newArtist: String) {
+        if (newTitle == videoFile.title && newArtist == (videoFile.artist ?: "")) {
             exitEditingMode()
             return
         }
-        pendingUpdateFile = mediaFile
+        pendingUpdateFile = videoFile
         pendingUpdateTitle = newTitle
         pendingUpdateArtist = newArtist
-        requestMetadataWritePermission(listOf(mediaFile.uri))
+        requestMetadataWritePermission(listOf(videoFile.uri))
     }
 
     private fun requestMetadataWritePermission(uris: List<Uri>) {

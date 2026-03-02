@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Clipper"
+rootProject.name = "Cutter"
 include(":app")
  

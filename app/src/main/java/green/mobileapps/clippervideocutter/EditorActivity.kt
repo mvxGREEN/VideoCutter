@@ -49,7 +49,7 @@ class EditorActivity : AppCompatActivity() {
 
     private lateinit var binding: EditorActivityBinding
     private var exoPlayer: ExoPlayer? = null
-    private var mediaFile: MediaFile? = null
+    private var videoFile: VideoFile? = null
     private var transformer: Transformer? = null
 
     private var startTimeMs: Long = 0L
@@ -84,16 +84,16 @@ class EditorActivity : AppCompatActivity() {
             }
 
             if (uri != null) {
-                mediaFile = loadMediaFileFromUri(uri)
+                videoFile = loadMediaFileFromUri(uri)
             }
         } else {
             // Standard launch from Main Activity
             @Suppress("DEPRECATION")
-            mediaFile = intent.getParcelableExtra("EXTRA_MEDIA_FILE")
+            videoFile = intent.getParcelableExtra("EXTRA_MEDIA_FILE")
         }
         // ------------------------------------------
 
-        if (mediaFile == null) {
+        if (videoFile == null) {
             Toast.makeText(this, "Could not load file", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -110,7 +110,7 @@ class EditorActivity : AppCompatActivity() {
         exoPlayer = ExoPlayer.Builder(this).build()
         binding.playerView.player = exoPlayer
 
-        val uri = mediaFile?.uri ?: return
+        val uri = videoFile?.uri ?: return
         val mediaItem = MediaItem.fromUri(uri)
 
         exoPlayer?.setMediaItem(mediaItem)
@@ -120,7 +120,7 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun setupTimeline() {
-        durationMs = mediaFile?.duration ?: 0L
+        durationMs = videoFile?.duration ?: 0L
         endTimeMs = durationMs
 
         binding.textTotalDuration.text = "Total ${formatTimeDecimal(durationMs)}"
@@ -145,9 +145,9 @@ class EditorActivity : AppCompatActivity() {
         binding.textStartTime.text = startTimeSpan
         binding.textEndTime.text = endTimeSpan
 
-        if (mediaFile?.isVideo == true) {
+        if (videoFile?.isVideo == true) {
             binding.recyclerThumbnails.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-            val adapter = ThumbnailAdapter(this, mediaFile!!, numThumbnails)
+            val adapter = ThumbnailAdapter(this, videoFile!!, numThumbnails)
             binding.recyclerThumbnails.adapter = adapter
         }
 
@@ -485,7 +485,7 @@ class EditorActivity : AppCompatActivity() {
     }
 
     private fun saveMedia() {
-        val sourceUri = mediaFile?.uri ?: return
+        val sourceUri = videoFile?.uri ?: return
 
         // --- FIX 1: RELEASE PLAYER RESOURCES ---
         // Pause isn't enough. We must release the player to free up the
@@ -575,9 +575,9 @@ class EditorActivity : AppCompatActivity() {
 
     private fun saveToGallery(tempFile: File) {
         try {
-            val originalTitle = mediaFile?.title ?: "media"
+            val originalTitle = videoFile?.title ?: "media"
             val timestamp = System.currentTimeMillis() / 1000
-            val isVideo = mediaFile?.isVideo == true
+            val isVideo = videoFile?.isVideo == true
 
             val extension = if (isVideo) "mp4" else "m4a"
             val mimeType = if (isVideo) "video/mp4" else "audio/mp4"
@@ -637,7 +637,7 @@ class EditorActivity : AppCompatActivity() {
     }
 
     // --- NEW: Helper method to construct MediaFile from Uri ---
-    private fun loadMediaFileFromUri(uri: Uri): MediaFile? {
+    private fun loadMediaFileFromUri(uri: Uri): VideoFile? {
         var title = "Unknown"
         var duration = 0L
         var size = 0L
@@ -689,7 +689,7 @@ class EditorActivity : AppCompatActivity() {
                 retriever.release()
             }
 
-            return MediaFile(
+            return VideoFile(
                 id = System.currentTimeMillis(), // Fake ID
                 uri = uri,
                 title = title,
@@ -707,7 +707,7 @@ class EditorActivity : AppCompatActivity() {
         }
     }
 
-    class ThumbnailAdapter(private val context: Context, private val file: MediaFile, private val count: Int) : RecyclerView.Adapter<ThumbnailAdapter.ThumbViewHolder>() {
+    class ThumbnailAdapter(private val context: Context, private val file: VideoFile, private val count: Int) : RecyclerView.Adapter<ThumbnailAdapter.ThumbViewHolder>() {
         private val interval = file.duration / count
         inner class ThumbViewHolder(val imageView: ImageView) : RecyclerView.ViewHolder(imageView)
 
