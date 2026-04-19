@@ -1,11 +1,13 @@
 # VideoCutter 🎞️✂️
 
-[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/Tagger/actions)
+[![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/VideoCutter/actions)
 [![License: WTFPL](https://img.shields.io/badge/License-WTFPL-brightgreen.svg)](http://www.wtfpl.net/about/)
 [![Language: Kotlin](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org/)
 [![Platform: Android](https://img.shields.io/badge/Platform-Android-3DDC84.svg)](https://developer.android.com/)
 
-**VideoCutter** is a lightweight, easy-to-use video trimmer and clip maker application built natively for Android. It allows users to easily trim and cut video files on their device. 
+**VideoCutter** is a focused video trimmer and clip maker app built natively for Android. 
+
+Easily trim and cut video files on your mobile device.
 
 ## ✨ Features
 
