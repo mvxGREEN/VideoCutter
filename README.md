@@ -22,7 +22,15 @@ Easily trim and cut video files on your mobile device.
 * **Build System:** Gradle (Kotlin DSL `build.gradle.kts`)
 * **Platform:** Android
 
-## 🚀 Getting Started
+## ⚡️ Quick Start App
+
+1. Download latest APK from [Releases](https://github.com/mvxGREEN/VideoCutter/releases) to an Android device.
+
+2. Open APK file to install.
+
+3. Done!  Open **VideoCutter** app to start trimming videos.
+
+## 💻 Build App from Source Code
 
 To build and run this project locally, you will need [Android Studio](https://developer.android.com/studio) installed on your machine.
 
