@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Cutter"
+rootProject.name = "VideoCutter"
 include(":app")
  
