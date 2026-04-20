@@ -38,18 +38,6 @@ Quickly trim video files into lossless clips on your mobile device.
 * **Build System:** Gradle (Kotlin DSL `build.gradle.kts`)
 * **Platform:** Android
 
-## 📸 Screenshots
-
-<p align="center">
-  <img src="assets/Screenshot 2.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 3.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 4.png" width="180"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="assets/Screenshot 5.png" width="180"/>
-</p>
-
 ## ⚡️ Quick Start App
 
 1. Download latest APK from [Releases](https://github.com/mvxGREEN/VideoCutter/releases) to an Android device.
