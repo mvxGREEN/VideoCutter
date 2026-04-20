@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/launcher_cutter_round.png" alt="Cutter Round App Icon" width="200"/>
+  <img src="assets/launcher_cutter_round.png" alt="Cutter Round App Icon" width="180"/>
 </p>
 
 # VideoCutter 🎞️✂️
