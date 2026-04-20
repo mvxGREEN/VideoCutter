@@ -17,7 +17,7 @@ Easily trim and cut video files on your mobile device.
 
 * **Video Trimming:** Select a video and precisely cut out the exact segment you need.
 * **Fast Export:** Save trimmed clips efficiently in MP4 format.
-* **Modern Android Stack:** 100% Kotlin codebase utilizing modern Android development practices.
+* **Modern Android Stack:** Kotlin codebase utilizing modern Android development practices.
 * **Simple UI/UX:** Designed to be straightforward and user-friendly for quick video editing.
 
 ## 🛠️ Tech Stack
