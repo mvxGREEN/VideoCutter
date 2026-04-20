@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/launcher_cutter_round.png" alt="Cutter Round App Icon" width="200"/>
+</p>
+
 # VideoCutter 🎞️✂️
 
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/VideoCutter/actions)
@@ -21,6 +25,18 @@ Easily trim and cut video files on your mobile device.
 * **Language:** Kotlin
 * **Build System:** Gradle (Kotlin DSL `build.gradle.kts`)
 * **Platform:** Android
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="assets/Screenshot 2.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 3.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 4.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 5.png" width="180"/>
+</p>
 
 ## ⚡️ Quick Start App
 
