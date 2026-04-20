@@ -11,7 +11,19 @@
 
 **VideoCutter** is a focused video trimmer and clip maker app built natively for Android. 
 
-Easily trim and cut video files on your mobile device.
+Quickly trim video files into lossless clips on your mobile device.
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="assets/Screenshot 1.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 2.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 3.png" width="180"/>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="assets/Screenshot 4.png" width="180"/>
+</p>
 
 ## ✨ Features
 
