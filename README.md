@@ -2,7 +2,11 @@
   <img src="assets/launcher_cutter_round.png" alt="Cutter Round App Icon" width="180"/>
 </p>
 
-# VideoCutter 🎞️✂️
+# VideoCutter ✂️🎞️
+
+<a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/mvxGREEN/VideoCutter">
+    <img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" width="200" alt="Get it from Obtainium">
+</a>
 
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen.svg)](https://github.com/mvxGREEN/VideoCutter/actions)
 [![License: WTFPL](https://img.shields.io/badge/License-WTFPL-brightgreen.svg)](http://www.wtfpl.net/about/)
